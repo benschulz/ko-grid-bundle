@@ -1,0 +1,23 @@
+{
+  "name": "ko-grid-bundle",
+  "main": "dist/ko-grid-bundle.js",
+  "description": "A bundle of ko-grid and all its extensions, ko-data-source and ko-indexed-repeat.",
+  "authors": ["Ben Schulz (https://github.com/benschulz)"],
+  "license": "BSD-3-Clause",
+  "keywords": [
+    "knockout",
+    "ko-grid"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "http://github.com/benschulz/ko-grid-bundle.git"
+  },
+  "devDependencies": {
+    "ko-data-source": "benschulz/ko-data-source",
+    "ko-grid": "benschulz/ko-grid",
+    "ko-grid-aggregate": "benschulz/ko-grid-aggregate",
+    "ko-grid-links": "benschulz/ko-grid-links",
+    "ko-grid-sorting": "benschulz/ko-grid-sorting",
+    "ko-indexed-repeat": "benschulz/ko-indexed-repeat"
+  }
+}
