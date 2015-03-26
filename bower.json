@@ -2,7 +2,9 @@
   "name": "ko-grid-bundle",
   "main": "dist/ko-grid-bundle.js",
   "description": "A bundle of ko-grid and all its extensions, ko-data-source and ko-indexed-repeat.",
-  "authors": ["Ben Schulz (https://github.com/benschulz)"],
+  "authors": [
+    "Ben Schulz (https://github.com/benschulz)"
+  ],
   "license": "BSD-3-Clause",
   "keywords": [
     "knockout",
@@ -16,8 +18,19 @@
     "ko-data-source": "benschulz/ko-data-source",
     "ko-grid": "benschulz/ko-grid",
     "ko-grid-aggregate": "benschulz/ko-grid-aggregate",
+    "ko-grid-column-resizing": "benschulz/ko-grid-column-resizing",
+    "ko-grid-column-scaling": "benschulz/ko-grid-column-scaling",
+    "ko-grid-column-sizing": "benschulz/ko-grid-column-sizing",
+    "ko-grid-column-width-persistence": "benschulz/ko-grid-column-width-persistence",
+    "ko-grid-export": "benschulz/ko-grid-export",
+    "ko-grid-filtering": "benschulz/ko-grid-filtering",
+    "ko-grid-full-screen": "benschulz/ko-grid-full-screen",
     "ko-grid-links": "benschulz/ko-grid-links",
+    "ko-grid-resize-detection": "benschulz/ko-grid-resize-detection",
     "ko-grid-sorting": "benschulz/ko-grid-sorting",
+    "ko-grid-toolbar": "benschulz/ko-grid-toolbar",
+    "ko-grid-view-modes": "benschulz/ko-grid-view-modes",
+    "ko-grid-view-state-storage": "benschulz/ko-grid-view-state-storage",
     "ko-indexed-repeat": "benschulz/ko-indexed-repeat"
   }
 }

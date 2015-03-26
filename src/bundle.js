@@ -1,14 +1,24 @@
 'use strict';
 
-define(['require', 'ko-data-source', 'ko-grid', 'ko-grid-aggregate', 'ko-grid-links', 'ko-grid-sorting', 'ko-indexed-repeat'],
-    function (require) {
-        return {
-            'dataSource': require('ko-data-source'),
-            'grid': require('ko-grid'),
-            'extensions': {
-                'aggregate': require('ko-grid-aggregate'),
-                'links': require('ko-grid-links'),
-                'sorting': require('ko-grid-sorting')
-            }
-        };
-    });
+define(function (require) {
+    return {
+        'dataSource': require('ko-data-source'),
+        'grid': require('ko-grid'),
+        'extensions': {
+            'aggregate': require('ko-grid-aggregate'),
+            'columnResizing': require('ko-grid-column-resizing'),
+            'columnScaling': require('ko-grid-column-scaling'),
+            'columnSizing': require('ko-grid-column-sizing'),
+            'columnWidthPersistence': require('ko-grid-column-width-persistence'),
+            'export': require('ko-grid-export'),
+            'filtering': require('ko-grid-filtering'),
+            'fullScreen': require('ko-grid-full-screen'),
+            'links': require('ko-grid-links'),
+            'resizeDetection': require('ko-grid-resize-detection'),
+            'sorting': require('ko-grid-sorting'),
+            'toolbar': require('ko-grid-toolbar'),
+            'viewModes': require('ko-grid-view-modes'),
+            'viewStateStorage': require('ko-grid-view-state-storage')
+        }
+    };
+});

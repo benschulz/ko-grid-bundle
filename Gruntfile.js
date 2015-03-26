@@ -19,7 +19,12 @@ module.exports = function (grunt) {
         less: [
             'bower_components/ko-grid/dist/ko-grid.debug.css',
             'bower_components/ko-grid-aggregate/dist/ko-grid-aggregate.debug.css',
-            'bower_components/ko-grid-sorting/dist/ko-grid-sorting.debug.css'
+            'bower_components/ko-grid-column-resizing/dist/ko-grid-column-resizing.debug.css',
+            'bower_components/ko-grid-export/dist/ko-grid-export.debug.css',
+            'bower_components/ko-grid-filtering/dist/ko-grid-filtering.debug.css',
+            'bower_components/ko-grid-full-screen/dist/ko-grid-full-screen.debug.css',
+            'bower_components/ko-grid-sorting/dist/ko-grid-sorting.debug.css',
+            'bower_components/ko-grid-toolbar/dist/ko-grid-toolbar.debug.css'
         ]
     });
 };
