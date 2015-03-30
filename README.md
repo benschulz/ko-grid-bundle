@@ -1,1 +1,0 @@
-A bundle of ko-grid and all its extensions, ko-data-source and ko-indexed-repeat.
