@@ -31,6 +31,7 @@
     "ko-grid-toolbar": "benschulz/ko-grid-toolbar",
     "ko-grid-view-modes": "benschulz/ko-grid-view-modes",
     "ko-grid-view-state-storage": "benschulz/ko-grid-view-state-storage",
+    "ko-grid-virtualization": "benschulz/ko-grid-virtualization",
     "ko-indexed-repeat": "benschulz/ko-indexed-repeat"
   }
 }

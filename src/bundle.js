@@ -18,7 +18,8 @@ define(function (require) {
             'sorting': require('ko-grid-sorting'),
             'toolbar': require('ko-grid-toolbar'),
             'viewModes': require('ko-grid-view-modes'),
-            'viewStateStorage': require('ko-grid-view-state-storage')
+            'viewStateStorage': require('ko-grid-view-state-storage'),
+            'virtualization': require('ko-grid-virtualization')
         }
     };
 });
