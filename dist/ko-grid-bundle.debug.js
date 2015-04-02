@@ -18,9 +18,9 @@
  * Copyright (c) 2015, Ben Schulz
  * License: BSD 3-clause (http://opensource.org/licenses/BSD-3-Clause)
  */
-var onefold_js, onefold_lists, indexed_list, ko_data_source, onefold_dom, stringifyable, ko_indexed_repeat, ko_grid, ko_grid_aggregate, ko_grid_column_sizing, ko_grid_column_resizing, ko_grid_view_modes, ko_grid_view_state_storage, ko_grid_column_scaling, ko_grid_column_width_persistence, ko_grid_export, ko_grid_filtering, ko_grid_full_screen, ko_grid_links, ko_grid_resize_detection, ko_grid_sorting, ko_grid_toolbar, ko_grid_virtualization, ko_grid_bundle_bundle, ko_grid_bundle;
+var onefold_js, onefold_lists, indexed_list, stringifyable, ko_data_source, onefold_dom, ko_indexed_repeat, ko_grid, ko_grid_aggregate, ko_grid_column_sizing, ko_grid_column_resizing, ko_grid_view_modes, ko_grid_view_state_storage, ko_grid_column_scaling, ko_grid_column_width_persistence, ko_grid_export, ko_grid_filtering, ko_grid_full_screen, ko_grid_links, ko_grid_resize_detection, ko_grid_sorting, ko_grid_toolbar, ko_grid_virtualization, ko_grid_bundle_bundle, ko_grid_bundle;
 onefold_js = function () {
-  var onefold_js_objects, onefold_js_arrays, onefold_js_functions, onefold_js_strings, onefold_js_internal, onefold_js;
+  var onefold_js_objects, onefold_js_arrays, onefold_js_strings, onefold_js_internal, onefold_js;
   onefold_js_objects = function () {
     return {
       areEqual: areEqual,
@@ -181,25 +181,6 @@ onefold_js = function () {
       return destination;
     }
   }(onefold_js_objects);
-  onefold_js_functions = function () {
-    var constant = function (x) {
-      return function () {
-        return x;
-      };
-    };
-    return {
-      // TODO with arrow functions these can go away
-      true: constant(true),
-      false: constant(false),
-      nop: constant(undefined),
-      null: constant(null),
-      zero: constant(0),
-      constant: constant,
-      identity: function (x) {
-        return x;
-      }
-    };
-  }();
   onefold_js_strings = {
     convertCamelToHyphenCase: function (camelCased) {
       return camelCased.replace(/([A-Z])/g, function (match) {
@@ -219,14 +200,13 @@ onefold_js = function () {
       });
     }
   };
-  onefold_js_internal = function (arrays, functions, objects, strings) {
+  onefold_js_internal = function (arrays, objects, strings) {
     return {
       arrays: arrays,
-      functions: functions,
       objects: objects,
       strings: strings
     };
-  }(onefold_js_arrays, onefold_js_functions, onefold_js_objects, onefold_js_strings);
+  }(onefold_js_arrays, onefold_js_objects, onefold_js_strings);
   onefold_js = function (main) {
     return main;
   }(onefold_js_internal);
@@ -390,7 +370,7 @@ indexed_list = function (onefold_lists, onefold_js) {
     function indexOfById(elementIdToIndex, id) {
       var index = tryIndexOfById(elementIdToIndex, id);
       if (index < 0)
-        throw new Error('No entry with Id `' + id + '`.');
+        throw new Error('No element with id `' + id + '`.');
       return index;
     }
     function findInsertionIndex(elements, comparator, element, fromIndex, toIndex) {
@@ -435,8 +415,11 @@ indexed_list = function (onefold_lists, onefold_js) {
         return this.__elements[index];
       },
       getById: function (id) {
-        var index = indexOfById(this.__elementIdToIndex, id);
-        return this.__elements[index];
+        return this.__elements[indexOfById(this.__elementIdToIndex, id)];
+      },
+      tryGetById: function (id) {
+        var index = tryIndexOfById(this.__elementIdToIndex, id);
+        return index >= 0 ? this.__elements[index] : null;
       },
       clear: function () {
         this.__elements = [];
@@ -568,8 +551,311 @@ indexed_list = function (onefold_lists, onefold_js) {
   }(indexed_list_indexed_list);
   return indexed_list;
 }(onefold_lists, onefold_js);
-ko_data_source = function (indexed_list, onefold_lists, onefold_js, knockout) {
-  var ko_data_source_client_side_data_source_delta, ko_data_source_client_side_data_source_views_subviews, ko_data_source_client_side_data_source_views_abstract_view, ko_data_source_client_side_data_source_views_root_view, ko_data_source_client_side_data_source_views_filtered_view, ko_data_source_client_side_data_source_views_sorted_view, ko_data_source_client_side_data_source_views_clipped_view, ko_data_source_client_side_data_source_views_views, ko_data_source_streams_mapped_stream, ko_data_source_abstract_data_source, ko_data_source_streams_list_stream, ko_data_source_queries_query, ko_data_source_queries_limitable_query_configurator, ko_data_source_queries_offsettable_query_configurator, ko_data_source_queries_sortable_query_configurator, ko_data_source_queries_filterable_query_configurator, ko_data_source_queries_query_configurator, ko_data_source_client_side_data_source_client_side_data_source, ko_data_source_default_observable_state_transitioner, ko_data_source_observable_entries, ko_data_source_server_side_data_source_server_side_data_source, ko_data_source_streams_streams, ko_data_source_ko_data_source, ko_data_source;
+stringifyable = function (onefold_js) {
+  var stringifyable_make_stringifyable, stringifyable_comparators, stringifyable_functions, stringifyable_predicates, stringifyable_stringify_replacer, stringifyable_internal, stringifyable;
+  stringifyable_make_stringifyable = function (js) {
+    return function makeStringifyable(stringifyable, supplier) {
+      return js.objects.extend(stringifyable, {
+        get 'stringifyable'() {
+          return supplier();
+        }
+      });
+    };
+  }(onefold_js);
+  stringifyable_comparators = function (js, makeStringifyable) {
+    /**
+     * @template T
+     *
+     * @param {function(T, T):number} comparator
+     * @param {de.benshu.stringifyable.comparators.Comparator<T>=} reversed
+     */
+    function makeComparator(comparator, reversed) {
+      return js.objects.extend(comparator, {
+        get 'onResultOf'() {
+          return this.onResultOf;
+        },
+        get 'reverse'() {
+          return this.reverse;
+        },
+        get 'callable'() {
+          return this.callable;
+        }
+      }, {
+        get onResultOf() {
+          return function (fn) {
+            return byFunctionComparator(fn, comparator);
+          };
+        },
+        get reverse() {
+          return function () {
+            return reversed || reverseComparator(comparator);
+          };
+        },
+        get callable() {
+          return comparator;
+        }
+      });
+    }
+    function byFunctionComparator(fn, comparator) {
+      var result = function (a, b) {
+        return comparator(fn(a), fn(b));
+      };
+      makeComparator(result);
+      makeStringifyable(result, function () {
+        return {
+          'type': 'by-function-comparator',
+          'function': fn.stringifyable,
+          'comparator': comparator.stringifyable
+        };
+      });
+      return result;
+    }
+    function reverseComparator(comparator) {
+      var result = function (a, b) {
+        return -comparator(a, b);
+      };
+      makeComparator(result, comparator);
+      makeStringifyable(result, function () {
+        return {
+          'type': 'reversed-comparator',
+          'comparator': comparator.stringifyable
+        };
+      });
+      return result;
+    }
+    var naturalComparator = function (a, b) {
+      return typeof a === 'string' && typeof b === 'string'  // TODO use Intl.Collator once safari implements internationalization.. see http://caniuse.com/#feat=internationalization
+ ? a.localeCompare(b) : a <= b ? a < b ? -1 : 0 : 1;
+    };
+    makeComparator(naturalComparator);
+    makeStringifyable(naturalComparator, function () {
+      return { 'type': 'natural-comparator' };
+    });
+    var indifferentComparator = function (a, b) {
+      return 0;
+    };
+    makeComparator(indifferentComparator);
+    makeStringifyable(indifferentComparator, function () {
+      return { 'type': 'indifferent-comparator' };
+    });
+    return {
+      indifferent: indifferentComparator,
+      natural: naturalComparator
+    };
+  }(onefold_js, stringifyable_make_stringifyable);
+  stringifyable_functions = function (js, makeStringifyable) {
+    function makeFunction(fn) {
+      return js.objects.extend(fn, {
+        get 'callable'() {
+          return this.callable;
+        }
+      }, {
+        get callable() {
+          return fn;
+        }
+      });
+    }
+    return {
+      propertyAccessor: function (propertyName) {
+        var fn = function (owner) {
+          return owner[propertyName];
+        };
+        makeFunction(fn);
+        makeStringifyable(fn, function () {
+          return {
+            'type': 'property-accessor',
+            'propertyName': propertyName
+          };
+        });
+        return fn;
+      }
+    };
+  }(onefold_js, stringifyable_make_stringifyable);
+  stringifyable_predicates = function (js, makeStringifyable) {
+    /**
+     * @template T
+     *
+     * @param {function(T):boolean} predicate
+     * @param {de.benshu.stringifyable.predicates.Predicate<T>=} negated
+     */
+    function makePredicate(predicate, negated) {
+      return js.objects.extend(predicate, {
+        get 'and'() {
+          return this.and;
+        },
+        get 'negate'() {
+          return this.negate;
+        },
+        get 'onResultOf'() {
+          return this.onResultOf;
+        },
+        get 'or'() {
+          return this.or;
+        },
+        get 'callable'() {
+          return this.callable;
+        }
+      }, {
+        get and() {
+          return function (other) {
+            return andPredicate([
+              predicate,
+              other
+            ]);
+          };
+        },
+        get negate() {
+          return function () {
+            return negated || negatedPredicate(predicate);
+          };
+        },
+        get onResultOf() {
+          return function (fn) {
+            return byFunctionPredicate(fn, predicate);
+          };
+        },
+        get or() {
+          return function (other) {
+            return orPredicate([
+              predicate,
+              other
+            ]);
+          };
+        },
+        get callable() {
+          return predicate;
+        }
+      });
+    }
+    var alwaysFalse = function () {
+      return false;
+    };
+    makePredicate(alwaysFalse);
+    makeStringifyable(alwaysFalse, function () {
+      return { 'type': 'always-false-predicate' };
+    });
+    var alwaysTrue = function () {
+      return true;
+    };
+    makePredicate(alwaysTrue);
+    makeStringifyable(alwaysTrue, function () {
+      return { 'type': 'always-true-predicate' };
+    });
+    function andPredicate(components) {
+      if (!components.length)
+        return alwaysTrue;
+      var result = function (value) {
+        for (var i = 0, length = components.length; i < length; ++i)
+          if (!components[i](value))
+            return false;
+        return true;
+      };
+      makePredicate(result);
+      makeStringifyable(result, function () {
+        return {
+          'type': 'and-predicate',
+          'components': components.map(function (c) {
+            return c.stringifyable;
+          })
+        };
+      });
+      return result;
+    }
+    function byFunctionPredicate(fn, predicate) {
+      var result = function (value) {
+        return predicate(fn(value));
+      };
+      makePredicate(result);
+      makeStringifyable(result, function () {
+        return {
+          'type': 'by-function-predicate',
+          'function': fn.stringifyable,
+          'predicate': predicate.stringifyable
+        };
+      });
+      return result;
+    }
+    function negatedPredicate(predicate) {
+      var result = function (value) {
+        return !predicate(value);
+      };
+      makePredicate(result, predicate);
+      makeStringifyable(result, function () {
+        return {
+          'type': 'negated-predicate',
+          'predicate': predicate.stringifyable
+        };
+      });
+      return result;
+    }
+    function orPredicate(components) {
+      if (!components.length)
+        return alwaysFalse;
+      var result = function (value) {
+        for (var i = 0, length = components.length; i < length; ++i)
+          if (components[i](value))
+            return true;
+        return false;
+      };
+      makePredicate(result);
+      makeStringifyable(result, function () {
+        return {
+          'type': 'or-predicate',
+          'components': components.map(function (c) {
+            return c.stringifyable;
+          })
+        };
+      });
+      return result;
+    }
+    return {
+      alwaysFalse: alwaysFalse,
+      alwaysTrue: alwaysTrue,
+      and: andPredicate,
+      from: function (predicate, supplier) {
+        var p = function (v) {
+          return predicate(v);
+        };
+        makePredicate(p);
+        makeStringifyable(p, supplier);
+        return p;
+      },
+      or: orPredicate,
+      regularExpression: function (regularExpression) {
+        var result = function (string) {
+          return regularExpression.test(string);
+        };
+        makePredicate(result);
+        makeStringifyable(result, function () {
+          return {
+            'type': 'regular-expression-predicate',
+            'regularExpression': regularExpression.source,
+            'caseSensitive': !regularExpression.ignoreCase,
+            'multiline': regularExpression.multiline
+          };
+        });
+        return result;
+      }
+    };
+  }(onefold_js, stringifyable_make_stringifyable);
+  stringifyable_stringify_replacer = function (key, value) {
+    return typeof value === 'function' || typeof value === 'object' ? value.stringifyable || value : value;
+  };
+  stringifyable_internal = {
+    comparators: stringifyable_comparators,
+    functions: stringifyable_functions,
+    predicates: stringifyable_predicates,
+    //
+    makeStringifyable: stringifyable_make_stringifyable,
+    stringifyReplacer: stringifyable_stringify_replacer
+  };
+  stringifyable = function (main) {
+    return main;
+  }(stringifyable_internal);
+  return stringifyable;
+}(onefold_js);
+ko_data_source = function (indexed_list, stringifyable, onefold_lists, onefold_js, knockout) {
+  var ko_data_source_client_side_data_source_delta, ko_data_source_client_side_data_source_views_subviews, ko_data_source_client_side_data_source_views_abstract_view, ko_data_source_client_side_data_source_views_root_view, ko_data_source_client_side_data_source_views_filtered_view, ko_data_source_client_side_data_source_views_sorted_view, ko_data_source_client_side_data_source_views_clipped_view, ko_data_source_client_side_data_source_views_views, ko_data_source_streams_mapped_stream, ko_data_source_abstract_data_source, ko_data_source_streams_list_stream, ko_data_source_default_observable_state_transitioner, ko_data_source_observable_entries, ko_data_source_queries_query, ko_data_source_queries_limitable_query_configurator, ko_data_source_queries_offsettable_query_configurator, ko_data_source_queries_sortable_query_configurator, ko_data_source_queries_filterable_query_configurator, ko_data_source_queries_query_configurator, ko_data_source_client_side_data_source_client_side_data_source, ko_data_source_server_side_data_source_server_side_data_source, ko_data_source_streams_streams, ko_data_source_ko_data_source, ko_data_source;
   ko_data_source_client_side_data_source_delta = function () {
     function Delta(added, updated, removed) {
       this.added = added || [];
@@ -905,8 +1191,8 @@ ko_data_source = function (indexed_list, onefold_lists, onefold_js, knockout) {
      * @param {!function(I):V} getValueById
      */
     function AbstractDataSource(observableEntries, getValueById) {
-      this.__getValueById = getValueById;
       this.__observableEntries = observableEntries;
+      this.__getValueById = getValueById;
     }
     AbstractDataSource.prototype = {
       openEntryView: function (entryId) {
@@ -930,12 +1216,11 @@ ko_data_source = function (indexed_list, onefold_lists, onefold_js, knockout) {
         throw new Error('`' + this.constructor + '` does not implement `dispose`.');
       }
     };
-    var proto = AbstractDataSource.prototype;
-    js.objects.extend(proto, {
-      'openEntryView': proto.openEntryView,
-      'openOptionalEntryView': proto.openOptionalEntryView,
-      'streamObservables': proto.streamObservables
-    });
+    AbstractDataSource.prototype = js.objects.extend({}, {
+      'openEntryView': AbstractDataSource.prototype.openEntryView,
+      'openOptionalEntryView': AbstractDataSource.prototype.openOptionalEntryView,
+      'streamObservables': AbstractDataSource.prototype.streamObservables
+    }, AbstractDataSource.prototype);
     /**
      * @constructor
      * @template V, O
@@ -965,6 +1250,15 @@ ko_data_source = function (indexed_list, onefold_lists, onefold_js, knockout) {
         this.__optionalEntryView.dispose();
       }
     };
+    DefaultEntryView.prototype = js.objects.extend({}, {
+      get 'value'() {
+        return this.value;
+      },
+      get 'observable'() {
+        return this.observable;
+      },
+      'dispose': DefaultEntryView.prototype.dispose
+    }, DefaultEntryView.prototype);
     /**
      * @constructor
      * @template I, V, O
@@ -1001,16 +1295,16 @@ ko_data_source = function (indexed_list, onefold_lists, onefold_js, knockout) {
         this.__assertNotDisposed();
         if (this.__optionalObservable)
           return this.__optionalObservable;
-        var sharedObservable = this.__observableEntries.addOptionalReference(this.value());
+        var sharedObservable = this.__observableEntries.addOptionalReference(this.value);
         this.__observable = sharedObservable();
         this.__optionalObservable = ko.observable({
-          present: true,
-          observable: this.observable()
+          'present': true,
+          'observable': this.__observable
         });
-        this.__subscription = sharedObservable.subscribe(function () {
+        this.__subscription = sharedObservable.subscribe(function (observable) {
           this.__optionalObservable({
-            present: false,
-            observable: this.observable()
+            'present': !!observable,
+            'observable': observable
           });
         }.bind(this));
         return this.__optionalObservable;
@@ -1025,6 +1319,18 @@ ko_data_source = function (indexed_list, onefold_lists, onefold_js, knockout) {
         }
       }
     };
+    DefaultOptionalEntryView.prototype = js.objects.extend({}, {
+      get 'value'() {
+        return this.value;
+      },
+      get 'observable'() {
+        return this.observable;
+      },
+      get 'optionalObservable'() {
+        return this.optionalObservable;
+      },
+      'dispose': DefaultOptionalEntryView.prototype.dispose
+    }, DefaultOptionalEntryView.prototype);
     var TRUE = function () {
       return true;
     };
@@ -1157,7 +1463,140 @@ ko_data_source = function (indexed_list, onefold_lists, onefold_js, knockout) {
     });
     return ListStream;
   }(onefold_js, ko_data_source_streams_mapped_stream);
-  ko_data_source_queries_query = function (ko, js) {
+  ko_data_source_default_observable_state_transitioner = function (ko) {
+    return function DefaultObservableStateTransitioner() {
+      var isNonObservableProperty = {};
+      Array.prototype.slice.call(arguments).forEach(function (property) {
+        isNonObservableProperty[property] = true;
+      });
+      this.constructor = function (entry) {
+        var observable = {};
+        Object.keys(entry).forEach(function (p) {
+          if (isNonObservableProperty[p])
+            observable[p] = entry[p];
+          else
+            observable[p] = ko.observable(entry[p]);
+        });
+        return observable;
+      };
+      this.updater = function (observable, updatedEntry) {
+        Object.keys(updatedEntry).filter(function (p) {
+          return !isNonObservableProperty[p];
+        }).forEach(function (p) {
+          return observable[p](updatedEntry[p]);
+        });
+        return observable;
+      };
+      this.destructor = function () {
+      };
+    };
+  }(knockout);
+  ko_data_source_observable_entries = function (ko, js, DefaultObservableStateTransitioner) {
+    /** @constructor */
+    function ObservableEntry(observable) {
+      this.observable = observable;
+      this.optionalObservable = ko.observable(observable);
+      this.refcount = 1;
+    }
+    // TODO clean up extract prototype
+    return function ObservableEntries(idSelector, observableStateTransitioner) {
+      observableStateTransitioner = observableStateTransitioner || new DefaultObservableStateTransitioner();
+      var hashtable = {};
+      var newInvalidIdTypeError = function (id) {
+        throw new Error('Illegal argument: Ids must be strings (\'' + id + '\' is of type \'' + typeof id + '\').');
+      };
+      this.addReference = function (value) {
+        return addAnyReference(value).observable;
+      };
+      this.addOptionalReference = function (value) {
+        return addAnyReference(value).optionalObservable;
+      };
+      var addAnyReference = function (value) {
+        var id = idSelector(value);
+        if (typeof id !== 'string')
+          throw newInvalidIdTypeError(id);
+        return Object.prototype.hasOwnProperty.call(hashtable, id) ? addReferenceToExistingEntry(id) : addEntry(id, value);
+      };
+      var addReferenceToExistingEntry = function (id) {
+        var entry = hashtable[id];
+        ++entry.refcount;
+        return entry;
+      };
+      var addEntry = function (id, value) {
+        var entry = new ObservableEntry(observableStateTransitioner.constructor(value));
+        hashtable[id] = entry;
+        return entry;
+      };
+      this.releaseReference = function (value) {
+        var id = idSelector(value);
+        var entry = lookupEntry(id);
+        if (--entry.refcount === 0) {
+          observableStateTransitioner.destructor(entry.observable);
+          delete hashtable[id];
+        }
+      };
+      this.lookup = function (value) {
+        return lookupEntry(idSelector(value)).observable;
+      };
+      this.reconstructEntries = function (addedEntries) {
+        addedEntries.forEach(function (addedEntry) {
+          var id = idSelector(addedEntry);
+          if (js.objects.hasOwn(hashtable, id)) {
+            var entry = hashtable[id];
+            entry.observable = observableStateTransitioner.constructor(addedEntry);
+            entry.optionalObservable(entry.observable);
+          }
+        });
+      };
+      this.updateEntries = function (updatedEntries) {
+        updatedEntries.forEach(function (updatedEntry) {
+          var id = idSelector(updatedEntry);
+          if (js.objects.hasOwn(hashtable, id)) {
+            var entry = hashtable[id];
+            observableStateTransitioner.updater(entry.observable, updatedEntry);
+          }
+        });
+      };
+      this.reconstructUpdateOrDestroyAll = function (updatedValueSupplier) {
+        js.objects.forEachProperty(hashtable, function (id, entry) {
+          var updatedValue = updatedValueSupplier(id);
+          if (updatedValue) {
+            if (entry.observable) {
+              observableStateTransitioner.updater(entry.observable, updatedValue);
+            } else {
+              entry.observable = observableStateTransitioner.constructor(updatedValue);
+              entry.optionalObservable(entry.observable);
+            }
+          } else {
+            entry.optionalObservable(null);
+            observableStateTransitioner.destructor(entry.observable);
+          }
+        });
+      };
+      this.destroyAll = function (idPredicate) {
+        js.objects.forEachProperty(hashtable, function (id, entry) {
+          if (idPredicate(id)) {
+            entry.optionalObservable(null);
+            observableStateTransitioner.destructor(entry.observable);
+          }
+        });
+      };
+      this.dispose = function () {
+        this.destroyAll(function () {
+          return true;
+        });
+      }.bind(this);
+      var lookupEntry = function (id) {
+        if (typeof id !== 'string')
+          throw newInvalidIdTypeError(id);
+        if (js.objects.hasOwn(hashtable, id))
+          return hashtable[id];
+        else
+          throw new Error('No entry for id `' + id + '`.');
+      };
+    };
+  }(knockout, onefold_js, ko_data_source_default_observable_state_transitioner);
+  ko_data_source_queries_query = function (ko, js, stringifyable) {
     /**
      * @constructor
      * @extends {de.benshu.ko.dataSource.Query}
@@ -1195,11 +1634,7 @@ ko_data_source = function (indexed_list, onefold_lists, onefold_js, knockout) {
         return this.__limit;
       },
       normalize: function () {
-        return new Query(this.predicate || function () {
-          return true;
-        }, this.comparator || function () {
-          return 0;
-        }, this.offset || 0, this.limit || this.limit === 0 ? this.limit : Number.POSITIVE_INFINITY);
+        return new Query(this.predicate || stringifyable.predicates.alwaysTrue, this.comparator || stringifyable.comparators.indifferent, this.offset || 0, this.limit || this.limit === 0 ? this.limit : Number.POSITIVE_INFINITY);
       },
       unwrapArguments: function () {
         return new Query(ko.unwrap(this.predicate), ko.unwrap(this.comparator), ko.unwrap(this.offset), ko.unwrap(this.limit));
@@ -1209,7 +1644,7 @@ ko_data_source = function (indexed_list, onefold_lists, onefold_js, knockout) {
       }
     });
     return Query;
-  }(knockout, onefold_js);
+  }(knockout, onefold_js, stringifyable);
   ko_data_source_queries_limitable_query_configurator = function (js, Query) {
     function LimitableQueryConfigurator(predicate, comparator, offset) {
       Query.call(this, predicate, comparator, offset);
@@ -1273,13 +1708,14 @@ ko_data_source = function (indexed_list, onefold_lists, onefold_js, knockout) {
       //
       views = ko_data_source_client_side_data_source_views_views,
       //
-      AbstractDataSource = ko_data_source_abstract_data_source, Delta = ko_data_source_client_side_data_source_delta, IndexedList = indexed_list, ListStream = ko_data_source_streams_list_stream, QueryConfigurator = ko_data_source_queries_query_configurator;
+      AbstractDataSource = ko_data_source_abstract_data_source, Delta = ko_data_source_client_side_data_source_delta, IndexedList = indexed_list, ListStream = ko_data_source_streams_list_stream, ObservableEntries = ko_data_source_observable_entries, QueryConfigurator = ko_data_source_queries_query_configurator;
     /**
      * @constructor
      * @template I, V, O
-     * @extends {de.benshu.ko.dataSource.DataSource<I, V, O>}
+     * @extends {AbstractDataSource<I, V, O>}
      */
     function ClientSideDataSource(idSelector, observableEntries) {
+      observableEntries = observableEntries || new ObservableEntries(idSelector);
       var values = new IndexedList(idSelector);
       AbstractDataSource.call(this, observableEntries, function (entryId) {
         return values.getById(entryId);
@@ -1324,13 +1760,18 @@ ko_data_source = function (indexed_list, onefold_lists, onefold_js, knockout) {
       addEntries: function (newEntries) {
         this.__values.addAll(newEntries);
         new Delta(newEntries).propagateTo(this.__deltas);
+        this.__observableEntries.reconstructEntries(newEntries);
       },
       addOrUpdateEntries: function (entries) {
         var added = [], updated = [];
         entries.forEach(function (entry) {
-          return (this.__values.contains(entry) ? updated : added).push();
+          return (this.__values.contains(entry) ? updated : added).push(entry);
         }.bind(this));
+        this.__values.addAll(added);
+        this.__values.updateAll(updated);
         new Delta(added, updated).propagateTo(this.__deltas);
+        this.__observableEntries.reconstructEntries(added);
+        this.__observableEntries.updateEntries(updated);
       },
       openView: function (queryConfiguration) {
         var query = (queryConfiguration || function (x) {
@@ -1347,14 +1788,18 @@ ko_data_source = function (indexed_list, onefold_lists, onefold_js, knockout) {
       removeEntries: function (entries) {
         this.__values.removeAll(entries);
         new Delta([], [], entries).propagateTo(this.__deltas);
+        this.__observableEntries.destroyAll(function (id) {
+          return !this.__values.containsById(id);
+        }.bind(this));
       },
       replaceEntries: function (newEntries) {
         var removedEntries = this.__values.toArray();
         this.__values.clear();
         this.__values.addAll(newEntries);
         new Delta(newEntries, [], removedEntries).propagateTo(this.__deltas);
-        // TODO update only those that were already there before the delta was propagated
-        this.__observableEntries.updateEntries(newEntries);
+        this.__observableEntries.reconstructUpdateOrDestroyAll(function (id) {
+          return this.__values.tryGetById(id);
+        }.bind(this));
       },
       streamValues: function (queryConfiguration) {
         var view = this.openView(queryConfiguration);
@@ -1371,6 +1816,7 @@ ko_data_source = function (indexed_list, onefold_lists, onefold_js, knockout) {
       },
       dispose: function () {
         this.__rootView.releaseReference();
+        this.__observableEntries.dispose();
         if (this.__openViewReferences.length) {
           var views = this.__openViewReferences.length;
           var referenceCount = this.__openViewReferences.reduce(function (c, r) {
@@ -1467,153 +1913,18 @@ ko_data_source = function (indexed_list, onefold_lists, onefold_js, knockout) {
     }, InternalViewAdapter.prototype);
     return ClientSideDataSource;
   }({});
-  ko_data_source_default_observable_state_transitioner = function (ko) {
-    return function DefaultObservableStateTransitioner() {
-      var isNonObservableProperty = {};
-      Array.prototype.slice.call(arguments).forEach(function (property) {
-        isNonObservableProperty[property] = true;
-      });
-      this.constructor = function (entry) {
-        var observable = {};
-        Object.keys(entry).forEach(function (p) {
-          if (isNonObservableProperty[p])
-            observable[p] = entry[p];
-          else
-            observable[p] = ko.observable(entry[p]);
-        });
-        return observable;
-      };
-      this.updater = function (observable, updatedEntry) {
-        Object.keys(updatedEntry).filter(function (p) {
-          return !isNonObservableProperty[p];
-        }).forEach(function (p) {
-          observable[p](updatedEntry[p]);
-        });
-        return observable;
-      };
-      this.destructor = function () {
-      };
-    };
-  }(knockout);
-  ko_data_source_observable_entries = function (ko) {
-    /** @constructor */
-    function ObservableEntry(observable) {
-      this.observable = observable;
-      this.optionalObservable = ko.observable(observable);
-      this.refcount = 1;
-    }
-    // TODO reduce interface to minimum (addReference, addOptionalReference, releaseReference, updateEntries, dispose, ...?)
-    return function ObservableEntries(idSelector, observableStateTransitioner) {
-      observableStateTransitioner = observableStateTransitioner || {
-        constructor: function (entry) {
-          var observable = {};
-          Object.keys(entry).forEach(function (k) {
-            observable[k] = ko.observable(entry[k]);
-          });
-          return observable;
-        },
-        updater: function (observable, updatedEntry) {
-          Object.keys(updatedEntry).forEach(function (k) {
-            observable[k](updatedEntry[k]);
-          });
-          return observable;
-        },
-        destructor: function () {
-        }
-      };
-      var hashtable = {};
-      var newInvalidIdTypeError = function (id) {
-        throw new Error('Illegal argument: Ids must be strings (\'' + id + '\' is of type \'' + typeof id + '\').');
-      };
-      this.addReference = function (value) {
-        return addAnyReference(value).observable;
-      };
-      this.addOptionalReference = function (value) {
-        return addAnyReference(value).optionalObservable;
-      };
-      var addAnyReference = function (value) {
-        var id = idSelector(value);
-        if (typeof id !== 'string')
-          throw newInvalidIdTypeError(id);
-        return Object.prototype.hasOwnProperty.call(hashtable, id) ? addReferenceToExistingEntry(id) : addEntry(id, value);
-      };
-      var addReferenceToExistingEntry = function (id) {
-        var entry = hashtable[id];
-        ++entry.refcount;
-        return entry;
-      };
-      var addEntry = function (id, value) {
-        var entry = new ObservableEntry(observableStateTransitioner.constructor(value));
-        hashtable[id] = entry;
-        return entry;
-      };
-      this.releaseReference = function (value) {
-        var id = idSelector(value);
-        var entry = lookupEntry(id);
-        if (--entry.refcount === 0) {
-          observableStateTransitioner.destructor(entry.observable);
-          delete hashtable[id];
-        }
-      };
-      this.forcefullyReleaseRemainingReferencesById = function (id) {
-        var entry = lookupEntry(id);
-        entry.optionalObservable(null);
-        observableStateTransitioner.destructor(entry.observable);
-        delete hashtable[id];
-      };
-      this.lookup = function (value) {
-        return lookupEntry(idSelector(value)).observable;
-      };
-      this.withById = function (id, action) {
-        return action(lookupEntry(id).observable);
-      };
-      this.with = function (value, action) {
-        return this.withById(idSelector(value), action);
-      }.bind(this);
-      this.withPresentById = function (id, action) {
-        var entry = tryLookupEntry(id);
-        if (entry)
-          action(entry.observable);
-      };
-      this.withPresent = function (value, action) {
-        return this.withPresentById(idSelector(value), action);
-      }.bind(this);
-      this.updateEntries = function (updatedEntries) {
-        updatedEntries.forEach(function (updatedEntry) {
-          this.withPresent(updatedEntry, function (observable) {
-            observableStateTransitioner.updater(observable, updatedEntry);
-          });
-        }.bind(this));
-      }.bind(this);
-      this.dispose = function () {
-        Object.keys(hashtable).forEach(this.forcefullyReleaseRemainingReferencesById);
-      }.bind(this);
-      var tryLookupEntry = function (id) {
-        if (typeof id !== 'string')
-          throw newInvalidIdTypeError(id);
-        if (!Object.prototype.hasOwnProperty.call(hashtable, id))
-          return null;
-        return hashtable[id];
-      };
-      var lookupEntry = function (id) {
-        var entry = tryLookupEntry(id);
-        if (!entry)
-          throw new Error('Es existierte keine Referenz zum Objekt mit Id \'' + id + '\' oder es wurden bereits alle freigegeben.');
-        return entry;
-      };
-    };
-  }(knockout);
   ko_data_source_server_side_data_source_server_side_data_source = function (require) {
     var ko = knockout, js = onefold_js, lists = onefold_lists,
       //
-      AbstractDataSource = ko_data_source_abstract_data_source, QueryConfigurator = ko_data_source_queries_query_configurator;
+      AbstractDataSource = ko_data_source_abstract_data_source, ObservableEntries = ko_data_source_observable_entries, QueryConfigurator = ko_data_source_queries_query_configurator;
     var hasOwn = js.objects.hasOwn;
     /**
      * @constructor
      * @template I, V, O
-     * @extends {de.benshu.ko.dataSource.DataSource<I, V, O>}
+     * @extends {AbstractDataSource<I, V, O>}
      */
-    function ServerSideDataSource(idSelector, observableEntries, querier) {
+    function ServerSideDataSource(idSelector, querier, observableEntries) {
+      observableEntries = observableEntries || new ObservableEntries(idSelector);
       var values = {};
       AbstractDataSource.call(this, observableEntries, function (entryId) {
         if (!hasOwn(values, entryId))
@@ -1683,6 +1994,7 @@ ko_data_source = function (indexed_list, onefold_lists, onefold_js, knockout) {
         return this.__querier['issue'](query.unwrapArguments().normalize());
       },
       dispose: function () {
+        this.__observableEntries.dispose();
         if (this.__openViewReferences.length) {
           var views = this.__openViewReferences.length;
           var referenceCount = this.__openViewReferences.reduce(function (c, r) {
@@ -1711,6 +2023,7 @@ ko_data_source = function (indexed_list, onefold_lists, onefold_js, knockout) {
      */
     function ServerSideView(dataSource, query, disposer) {
       var requestPending = ko.observable(false);
+      var dirty = ko.observable(false);
       var metadata = ko.observable({
         'unfilteredSize': dataSource.size.peek(),
         'filteredSize': 0
@@ -1720,6 +2033,7 @@ ko_data_source = function (indexed_list, onefold_lists, onefold_js, knockout) {
       var computer = ko.pureComputed(function () {
         if (requestPending.peek())
           return requestPending();
+        dirty(true);
         requestPending(true);
         var q = query.unwrapArguments().normalize();
         window.setTimeout(function () {
@@ -1735,9 +2049,10 @@ ko_data_source = function (indexed_list, onefold_lists, onefold_js, knockout) {
             dataSource.__size(r['unfilteredSize']);
             metadata(r);
           }).then(function () {
-            return requestPending(false);
+            dirty(false);
+            requestPending(false);
           }, function () {
-            return requestPending(false);
+            requestPending(false);
           });
         });  // TODO maybe the user wants to specify a delay > 0 ?
       });
@@ -1775,7 +2090,7 @@ ko_data_source = function (indexed_list, onefold_lists, onefold_js, knockout) {
         return observablesList = null;
       }, null, 'asleep');
       this.__dirty = ko.pureComputed(function () {
-        return requestPending();
+        return dirty();
       });
       this.__metadata = ko.pureComputed(function () {
         return metadata();
@@ -1857,7 +2172,7 @@ ko_data_source = function (indexed_list, onefold_lists, onefold_js, knockout) {
     return main;
   }(ko_data_source_ko_data_source);
   return ko_data_source;
-}(indexed_list, onefold_lists, onefold_js, knockout);
+}(indexed_list, stringifyable, onefold_lists, onefold_js, knockout);
 onefold_dom = function () {
   var onefold_dom_internal, onefold_dom;
   onefold_dom_internal = function () {
@@ -1903,309 +2218,6 @@ onefold_dom = function () {
   }(onefold_dom_internal);
   return onefold_dom;
 }();
-stringifyable = function (onefold_js) {
-  var stringifyable_make_stringifyable, stringifyable_comparators, stringifyable_functions, stringifyable_predicates, stringifyable_stringify_replacer, stringifyable_internal, stringifyable;
-  stringifyable_make_stringifyable = function (js) {
-    return function makeStringifyable(stringifyable, supplier) {
-      return js.objects.extend(stringifyable, {
-        get 'stringifyable'() {
-          return supplier();
-        }
-      });
-    };
-  }(onefold_js);
-  stringifyable_comparators = function (js, makeStringifyable) {
-    /**
-     * @template T
-     *
-     * @param {function(T, T):number} comparator
-     * @param {de.benshu.stringifyable.comparators.Comparator<T>=} reversed
-     */
-    function makeComparator(comparator, reversed) {
-      return js.objects.extend(comparator, {
-        get 'onResultOf'() {
-          return this.onResultOf;
-        },
-        get 'reverse'() {
-          return this.reverse;
-        },
-        get 'callable'() {
-          return this.callable;
-        }
-      }, {
-        get onResultOf() {
-          return function (fn) {
-            return byFunctionComparator(fn, comparator);
-          };
-        },
-        get reverse() {
-          return function () {
-            return reversed || reverseComparator(comparator);
-          };
-        },
-        get callable() {
-          return comparator;
-        }
-      });
-    }
-    function byFunctionComparator(fn, comparator) {
-      var result = function (a, b) {
-        return comparator(fn(a), fn(b));
-      };
-      makeComparator(result);
-      makeStringifyable(result, function () {
-        return {
-          type: 'by-function-comparator',
-          function: fn.stringifyable,
-          comparator: comparator.stringifyable
-        };
-      });
-      return result;
-    }
-    function reverseComparator(comparator) {
-      var result = function (a, b) {
-        return -comparator(a, b);
-      };
-      makeComparator(result, comparator);
-      makeStringifyable(result, function () {
-        return {
-          type: 'reversed-comparator',
-          comparator: comparator.stringifyable
-        };
-      });
-      return result;
-    }
-    var naturalComparator = function (a, b) {
-      return typeof a === 'string' && typeof b === 'string'  // TODO use Intl.Collator once safari implements internationalization.. see http://caniuse.com/#feat=internationalization
- ? a.localeCompare(b) : a <= b ? a < b ? -1 : 0 : 1;
-    };
-    makeComparator(naturalComparator);
-    makeStringifyable(naturalComparator, function () {
-      return { type: 'natural-comparator' };
-    });
-    var indifferentComparator = function (a, b) {
-      return 0;
-    };
-    makeComparator(indifferentComparator);
-    makeStringifyable(indifferentComparator, function () {
-      return { type: 'indifferent-comparator' };
-    });
-    return {
-      indifferent: indifferentComparator,
-      natural: naturalComparator
-    };
-  }(onefold_js, stringifyable_make_stringifyable);
-  stringifyable_functions = function (js, makeStringifyable) {
-    function makeFunction(fn) {
-      return js.objects.extend(fn, {
-        get 'callable'() {
-          return this.callable;
-        }
-      }, {
-        get callable() {
-          return fn;
-        }
-      });
-    }
-    return {
-      propertyAccessor: function (propertyName) {
-        var fn = function (owner) {
-          return owner[propertyName];
-        };
-        makeFunction(fn);
-        makeStringifyable(fn, function () {
-          return {
-            type: 'property-accessor',
-            propertyName: propertyName
-          };
-        });
-        return fn;
-      }
-    };
-  }(onefold_js, stringifyable_make_stringifyable);
-  stringifyable_predicates = function (js, makeStringifyable) {
-    /**
-     * @template T
-     *
-     * @param {function(T):boolean} predicate
-     * @param {de.benshu.stringifyable.predicates.Predicate<T>=} negated
-     */
-    function makePredicate(predicate, negated) {
-      return js.objects.extend(predicate, {
-        get 'and'() {
-          return this.and;
-        },
-        get 'negate'() {
-          return this.negate;
-        },
-        get 'onResultOf'() {
-          return this.onResultOf;
-        },
-        get 'or'() {
-          return this.or;
-        },
-        get 'callable'() {
-          return this.callable;
-        }
-      }, {
-        get and() {
-          return function (other) {
-            return andPredicate([
-              predicate,
-              other
-            ]);
-          };
-        },
-        get negate() {
-          return function () {
-            return negated || negatedPredicate(predicate);
-          };
-        },
-        get onResultOf() {
-          return function (fn) {
-            return byFunctionPredicate(fn, predicate);
-          };
-        },
-        get or() {
-          return function (other) {
-            return orPredicate([
-              predicate,
-              other
-            ]);
-          };
-        },
-        get callable() {
-          return predicate;
-        }
-      });
-    }
-    var alwaysFalse = function () {
-      return false;
-    };
-    makePredicate(alwaysFalse);
-    makeStringifyable(alwaysFalse, function () {
-      return { type: 'always-false-predicate' };
-    });
-    var alwaysTrue = function () {
-      return true;
-    };
-    makePredicate(alwaysTrue);
-    makeStringifyable(alwaysTrue, function () {
-      return { type: 'always-true-predicate' };
-    });
-    function andPredicate(components) {
-      if (!components.length)
-        return alwaysTrue;
-      var result = function (value) {
-        for (var i = 0, length = components.length; i < length; ++i)
-          if (!components[i](value))
-            return false;
-        return true;
-      };
-      makePredicate(result);
-      makeStringifyable(result, function () {
-        return {
-          'type': 'and-predicate',
-          'components': components.map(function (c) {
-            return c.stringifyable;
-          })
-        };
-      });
-      return result;
-    }
-    function byFunctionPredicate(fn, predicate) {
-      var result = function (value) {
-        return predicate(fn(value));
-      };
-      makePredicate(result);
-      makeStringifyable(result, function () {
-        return {
-          type: 'by-function-predicate',
-          function: fn.stringifyable,
-          predicate: predicate.stringifyable
-        };
-      });
-      return result;
-    }
-    function negatedPredicate(predicate) {
-      var result = function (value) {
-        return !predicate(value);
-      };
-      makePredicate(result, predicate);
-      makeStringifyable(result, function () {
-        return {
-          type: 'negated-predicate',
-          predicate: predicate.stringifyable
-        };
-      });
-      return result;
-    }
-    function orPredicate(components) {
-      if (!components.length)
-        return alwaysFalse;
-      var result = function (value) {
-        for (var i = 0, length = components.length; i < length; ++i)
-          if (components[i](value))
-            return true;
-        return false;
-      };
-      makePredicate(result);
-      makeStringifyable(result, function () {
-        return {
-          'type': 'or-predicate',
-          'components': components.map(function (c) {
-            return c.stringifyable;
-          })
-        };
-      });
-      return result;
-    }
-    return {
-      alwaysFalse: alwaysFalse,
-      alwaysTrue: alwaysTrue,
-      and: andPredicate,
-      from: function (predicate, supplier) {
-        var p = function (v) {
-          return predicate(v);
-        };
-        makePredicate(p);
-        makeStringifyable(p, supplier);
-        return p;
-      },
-      or: orPredicate,
-      regularExpression: function (regularExpression) {
-        var result = function (string) {
-          return regularExpression.test(string);
-        };
-        makePredicate(result);
-        makeStringifyable(result, function () {
-          return {
-            type: 'regular-expression-predicate',
-            regularExpression: regularExpression.source,
-            caseSensitive: !regularExpression.ignoreCase,
-            multiline: regularExpression.multiline
-          };
-        });
-        return result;
-      }
-    };
-  }(onefold_js, stringifyable_make_stringifyable);
-  stringifyable_stringify_replacer = function (key, value) {
-    return typeof value === 'function' || typeof value === 'object' ? value.stringifyable || value : value;
-  };
-  stringifyable_internal = {
-    comparators: stringifyable_comparators,
-    functions: stringifyable_functions,
-    predicates: stringifyable_predicates,
-    //
-    makeStringifyable: stringifyable_make_stringifyable,
-    stringifyReplacer: stringifyable_stringify_replacer
-  };
-  stringifyable = function (main) {
-    return main;
-  }(stringifyable_internal);
-  return stringifyable;
-}(onefold_js);
 ko_indexed_repeat = function (knockout) {
   var ko_indexed_repeat_accessors, ko_indexed_repeat_configuration, ko_indexed_repeat_string_hashtable, ko_indexed_repeat_synchronizer, ko_indexed_repeat_binding, ko_indexed_repeat;
   ko_indexed_repeat_accessors = function () {
@@ -2557,7 +2569,7 @@ ko_indexed_repeat = function (knockout) {
   }(ko_indexed_repeat_binding);
   return ko_indexed_repeat;
 }(knockout);
-ko_grid = function (onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_data_source, ko_indexed_repeat, knockout) {
+ko_grid = function (onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_data_source, ko_indexed_repeat, knockout) {
   var ko_grid_template, text, text_ko_grid_columnshtmltemplate, ko_grid_columns, ko_grid_application_event_dispatcher, text_ko_grid_datahtmltemplate, ko_grid_data, text_ko_grid_headershtmltemplate, ko_grid_headers, ko_grid_layout, ko_grid_core, ko_grid_extensions, text_ko_grid_gridhtmltemplate, ko_grid_binding, ko_grid;
   ko_grid_template = function () {
     var PLACEHOLDER_KIND_REGULAR = 1;
@@ -2684,7 +2696,7 @@ ko_grid = function (onefold_dom, stringifyable, indexed_list, onefold_lists, one
     }
   };
   text_ko_grid_columnshtmltemplate = '<colgroup class="ko-grid-colgroup">\n    <col class="ko-grid-col" data-bind="indexedRepeat: { forEach: columns.displayed, indexedBy: \'id\', as: \'column\' }" data-repeat-bind="__gridColumn: column()">\n</colgroup>';
-  ko_grid_columns = function (ko, js, columnsTemplate) {
+  ko_grid_columns = function (ko, columnsTemplate) {
     var TO_STRING_VALUE_RENDERER = function (cellValue) {
       return cellValue === null ? '' : '' + cellValue;
     };
@@ -2796,7 +2808,8 @@ ko_grid = function (onefold_dom, stringifyable, indexed_list, onefold_lists, one
       }
     };
     ko.bindingHandlers['__gridColumn'] = {
-      'init': js.functions.nop,
+      'init': function () {
+      },
       'update': function (element, valueAccessor) {
         var column = valueAccessor();
         element.style.width = column.width();
@@ -2832,7 +2845,7 @@ ko_grid = function (onefold_dom, stringifyable, indexed_list, onefold_lists, one
       this['headerClasses'] = this.headerClasses;
       this['cellClasses'] = this.cellClasses;
       this['footerClasses'] = this.footerClasses;
-      this.metadata = gridConfig['columnMetadataProvider'] ? gridConfig['columnMetadataProvider'](grid, column) : {};
+      this.metadata = gridConfig['columnMetadataSupplier'] ? gridConfig['columnMetadataSupplier'](grid.bindingValue, column) : {};
       this['metadata'] = this.metadata;
       this.renderValue = gridConfig['cellValueRenderer'] ? gridConfig['cellValueRenderer'].bind(undefined, this) : TO_STRING_VALUE_RENDERER;
       this['renderValue'] = this.renderValue;
@@ -2853,7 +2866,7 @@ ko_grid = function (onefold_dom, stringifyable, indexed_list, onefold_lists, one
       this['overrideValueBinding'] = this.overrideValueBinding;
     }
     return columns;
-  }(knockout, onefold_js, text_ko_grid_columnshtmltemplate);
+  }(knockout, text_ko_grid_columnshtmltemplate);
   ko_grid_application_event_dispatcher = function (js, dom) {
     /** @constructor */
     function ApplicationEvent(originalEvent) {
@@ -2940,7 +2953,9 @@ ko_grid = function (onefold_dom, stringifyable, indexed_list, onefold_lists, one
         var disposeCallbacks = [];
         /** @type {de.benshu.ko.dataSource.DataSource<?, ?, ?>} */
         this.source = bindingValue['dataSource'];
-        this.valueSelector = bindingValue['valueSelector'] || config['valueSelector'] || js.functions.identity;
+        this.valueSelector = bindingValue['valueSelector'] || config['valueSelector'] || function (p) {
+          return p;
+        };
         this['valueSelector'] = this.valueSelector;
         this.observableValueSelector = bindingValue['observableValueSelector'] || config['observableValueSelector'] || this.valueSelector;
         this['observableValueSelector'] = this.observableValueSelector;
@@ -2962,7 +2977,8 @@ ko_grid = function (onefold_dom, stringifyable, indexed_list, onefold_lists, one
         disposeCallbacks.push(view.dispose.bind(view));
         this.view = view;
         this['view'] = view;
-        this._postApplyBindings = js.functions.nop;
+        this._postApplyBindings = function () {
+        };
         this.__postApplyBindings = function (callback) {
           var innerCallback = this._postApplyBindings;
           this._postApplyBindings = function () {
@@ -3065,7 +3081,8 @@ ko_grid = function (onefold_dom, stringifyable, indexed_list, onefold_lists, one
         this.__tbodyElement.addEventListener('dblclick', dispatchVia(onDoubleClickDispatcher));
         this.__tbodyElement.addEventListener('contextmenu', dispatchVia(onContextMenuDispatcher));
       }.bind(this));
-      return js.functions.nop;
+      return function () {
+      };
     }
     function initElementLookup(grid) {
       var nthRowElement = function (n) {
@@ -3123,10 +3140,12 @@ ko_grid = function (onefold_dom, stringifyable, indexed_list, onefold_lists, one
         };
       }.bind(this);
       this['lookupCell'] = this.lookupCell;
-      return js.functions.nop;
+      return function () {
+      };
     }
     ko.bindingHandlers['__gridRow'] = {
-      'init': js.functions.nop,
+      'init': function () {
+      },
       'update': function (element, valueAccessor) {
         var value = valueAccessor();
         var classify = value['classify'];
@@ -3439,10 +3458,11 @@ ko_grid = function (onefold_dom, stringifyable, indexed_list, onefold_lists, one
     };
     return headers;
   }(knockout, onefold_js, ko_grid_application_event_dispatcher, text_ko_grid_headershtmltemplate);
-  ko_grid_layout = function (ko, js) {
+  ko_grid_layout = function (ko) {
     var document = window.document;
     var layout = {
-      init: js.functions.nop,
+      init: function () {
+      },
       Constructor: function (bindingValue, config, grid) {
         var recalculating = ko.observable(false);
         var recalculate = function (configuration) {
@@ -3569,7 +3589,7 @@ ko_grid = function (onefold_dom, stringifyable, indexed_list, onefold_lists, one
       }
     }
     return layout;
-  }(knockout, onefold_js);
+  }(knockout);
   ko_grid_core = function (ko, columns, data, headers, layout) {
     var grid = ko.bindingHandlers['grid'] = ko.bindingHandlers['grid'] || {};
     var core = grid['core'] = grid['core'] || {
@@ -3613,7 +3633,8 @@ ko_grid = function (onefold_dom, stringifyable, indexed_list, onefold_lists, one
     function GridExtension(primaryName, spec) {
       this.primaryName = primaryName;
       this.dependencies = spec.dependencies || [];
-      this.initializer = spec.initializer || js.functions.nop;
+      this.initializer = spec.initializer || function () {
+      };
       this.Constructor = spec.Constructor;
       this.__knownAliases = [];
     }
@@ -3678,15 +3699,17 @@ ko_grid = function (onefold_dom, stringifyable, indexed_list, onefold_lists, one
     };
     /** @constructor */
     function Grid(rootElement, bindingValue) {
+      this.bindingValue = bindingValue;
       this.primaryKey = bindingValue['primaryKey'];
       this['primaryKey'] = this.primaryKey;
       this.rootElement = rootElement;
       this['rootElement'] = rootElement;
       this.element = null;
       this['element'] = null;
-      this._classes = ko.observableArray([]);
-      this._dispose = js.functions.nop;
-      this.__postApplyBindings = js.functions.nop;
+      this._dispose = function () {
+      };
+      this.__postApplyBindings = function () {
+      };
       this.postApplyBindings = function (callback) {
         if (!this.__postApplyBindings)
           throw new Error('Illegal state: postApplyBindings-callbacks have been called already.');
@@ -3758,7 +3781,8 @@ ko_grid = function (onefold_dom, stringifyable, indexed_list, onefold_lists, one
       });
       return { 'controlsDescendantBindings': true };
     };
-    ko.bindingHandlers['grid']['update'] = js.functions.nop;
+    ko.bindingHandlers['grid']['update'] = function () {
+    };
     // TODO extract into own file
     var loadedConfigs = {};
     var loadConfig = function (configName, handler) {
@@ -3803,7 +3827,8 @@ ko_grid = function (onefold_dom, stringifyable, indexed_list, onefold_lists, one
       });
     };
     ko.bindingHandlers['_gridWidth'] = {
-      'init': js.functions.nop,
+      'init': function () {
+      },
       'update': function (element, valueAccessor) {
         var w = valueAccessor();
         element.style.width = w;
@@ -3816,8 +3841,8 @@ ko_grid = function (onefold_dom, stringifyable, indexed_list, onefold_lists, one
     return main;
   }(ko_grid_binding);
   return ko_grid;
-}(onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_data_source, ko_indexed_repeat, knockout);
-ko_grid_aggregate = function (onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
+}(onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_data_source, ko_indexed_repeat, knockout);
+ko_grid_aggregate = function (onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
   var ko_grid_aggregate_aggregate, ko_grid_aggregate;
   ko_grid_aggregate_aggregate = function (module, ko, koGrid) {
     var extensionId = 'ko-grid-aggregate'.substr(0, 'ko-grid-aggregate'.indexOf('/')).substr(0, 'ko-grid-aggregate'.indexOf('/'));
@@ -3941,8 +3966,8 @@ ko_grid_aggregate = function (onefold_dom, stringifyable, indexed_list, onefold_
     return main;
   }(ko_grid_aggregate_aggregate);
   return ko_grid_aggregate;
-}(onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
-ko_grid_column_sizing = function (onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
+}(onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
+ko_grid_column_sizing = function (onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
   var ko_grid_column_sizing_column_sizing, ko_grid_column_sizing;
   ko_grid_column_sizing_column_sizing = function (module, koGrid) {
     var extensionId = 'ko-grid-column-sizing'.indexOf('/') < 0 ? 'ko-grid-column-sizing' : 'ko-grid-column-sizing'.substring(0, 'ko-grid-column-sizing'.indexOf('/'));
@@ -3960,8 +3985,8 @@ ko_grid_column_sizing = function (onefold_dom, stringifyable, indexed_list, onef
     return main;
   }(ko_grid_column_sizing_column_sizing);
   return ko_grid_column_sizing;
-}(onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
-ko_grid_column_resizing = function (onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid_column_sizing, ko_data_source, ko_indexed_repeat, ko_grid, knockout) {
+}(onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
+ko_grid_column_resizing = function (onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid_column_sizing, ko_data_source, ko_indexed_repeat, ko_grid, knockout) {
   var ko_grid_column_resizing_column_resizing, ko_grid_column_resizing;
   var columnSizing = 'ko-grid-column-sizing';
   ko_grid_column_resizing_column_resizing = function (module, ko, dom, koGrid) {
@@ -4061,8 +4086,8 @@ ko_grid_column_resizing = function (onefold_dom, stringifyable, indexed_list, on
     return main;
   }(ko_grid_column_resizing_column_resizing);
   return ko_grid_column_resizing;
-}(onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid_column_sizing, ko_data_source, ko_indexed_repeat, ko_grid, knockout);
-ko_grid_view_modes = function (onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
+}(onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid_column_sizing, ko_data_source, ko_indexed_repeat, ko_grid, knockout);
+ko_grid_view_modes = function (onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
   var ko_grid_view_modes_view_modes, ko_grid_view_modes;
   ko_grid_view_modes_view_modes = function (module, ko, js, koGrid) {
     var extensionId = 'ko-grid-view-modes'.indexOf('/') < 0 ? 'ko-grid-view-modes' : 'ko-grid-view-modes'.substring(0, 'ko-grid-view-modes'.indexOf('/'));
@@ -4111,8 +4136,8 @@ ko_grid_view_modes = function (onefold_dom, stringifyable, indexed_list, onefold
     return main;
   }(ko_grid_view_modes_view_modes);
   return ko_grid_view_modes;
-}(onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
-ko_grid_view_state_storage = function (onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid_view_modes, ko_data_source, ko_indexed_repeat, ko_grid, knockout) {
+}(onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
+ko_grid_view_state_storage = function (onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid_view_modes, ko_data_source, ko_indexed_repeat, ko_grid, knockout) {
   var ko_grid_view_state_storage_view_state_storage, ko_grid_view_state_storage;
   var viewModes = 'ko-grid-view-modes';
   ko_grid_view_state_storage_view_state_storage = function (module, js, koGrid) {
@@ -4238,8 +4263,8 @@ ko_grid_view_state_storage = function (onefold_dom, stringifyable, indexed_list,
     return main;
   }(ko_grid_view_state_storage_view_state_storage);
   return ko_grid_view_state_storage;
-}(onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid_view_modes, ko_data_source, ko_indexed_repeat, ko_grid, knockout);
-ko_grid_column_scaling = function (stringifyable, onefold_dom, indexed_list, onefold_lists, onefold_js, ko_grid_column_resizing, ko_grid_view_state_storage, ko_data_source, ko_indexed_repeat, ko_grid_column_sizing, ko_grid_view_modes, knockout, ko_grid) {
+}(onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid_view_modes, ko_data_source, ko_indexed_repeat, ko_grid, knockout);
+ko_grid_column_scaling = function (onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid_column_resizing, ko_grid_view_state_storage, ko_data_source, ko_indexed_repeat, ko_grid_column_sizing, ko_grid_view_modes, knockout, ko_grid) {
   var ko_grid_column_scaling_column_scaling, ko_grid_column_scaling;
   var columnSizing = 'ko-grid-column-sizing';
   var viewStateStorage = 'ko-grid-view-state-storage';
@@ -4327,8 +4352,8 @@ ko_grid_column_scaling = function (stringifyable, onefold_dom, indexed_list, one
     return main;
   }(ko_grid_column_scaling_column_scaling);
   return ko_grid_column_scaling;
-}(stringifyable, onefold_dom, indexed_list, onefold_lists, onefold_js, ko_grid_column_resizing, ko_grid_view_state_storage, ko_data_source, ko_indexed_repeat, ko_grid_column_sizing, ko_grid_view_modes, knockout, ko_grid);
-ko_grid_column_width_persistence = function (onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid_column_sizing, ko_grid_view_state_storage, ko_data_source, ko_indexed_repeat, ko_grid_view_modes, knockout, ko_grid) {
+}(onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid_column_resizing, ko_grid_view_state_storage, ko_data_source, ko_indexed_repeat, ko_grid_column_sizing, ko_grid_view_modes, knockout, ko_grid);
+ko_grid_column_width_persistence = function (onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid_column_sizing, ko_grid_view_state_storage, ko_data_source, ko_indexed_repeat, ko_grid_view_modes, knockout, ko_grid) {
   var ko_grid_column_width_persistence_column_width_persistence, ko_grid_column_width_persistence;
   var columnSizing = 'ko-grid-column-sizing';
   var viewStateStorage = 'ko-grid-view-state-storage';
@@ -4366,8 +4391,8 @@ ko_grid_column_width_persistence = function (onefold_dom, stringifyable, indexed
     return main;
   }(ko_grid_column_width_persistence_column_width_persistence);
   return ko_grid_column_width_persistence;
-}(onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid_column_sizing, ko_grid_view_state_storage, ko_data_source, ko_indexed_repeat, ko_grid_view_modes, knockout, ko_grid);
-ko_grid_export = function (onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
+}(onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid_column_sizing, ko_grid_view_state_storage, ko_data_source, ko_indexed_repeat, ko_grid_view_modes, knockout, ko_grid);
+ko_grid_export = function (onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
   var ko_grid_export_export, ko_grid_export;
   var toolbar = 'ko-grid-toolbar';
   ko_grid_export_export = function (module, koGrid) {
@@ -4441,8 +4466,8 @@ ko_grid_export = function (onefold_dom, stringifyable, indexed_list, onefold_lis
     return main;
   }(ko_grid_export_export);
   return ko_grid_export;
-}(onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
-ko_grid_filtering = function (onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid_view_state_storage, ko_data_source, ko_indexed_repeat, ko_grid_view_modes, knockout, ko_grid) {
+}(onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
+ko_grid_filtering = function (onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid_view_state_storage, ko_data_source, ko_indexed_repeat, ko_grid_view_modes, knockout, ko_grid) {
   var text, text_ko_grid_filtering_filteringhtmltemplate, ko_grid_filtering_filtering, ko_grid_filtering;
   text = {
     load: function (id) {
@@ -4489,19 +4514,15 @@ ko_grid_filtering = function (onefold_dom, stringifyable, indexed_list, onefold_
         var throttleAmout = config.throttle && config.throttle.by || 300;
         var throttledRowPredicate = throttle ? rowPredicate.extend({ throttle: throttleAmout }) : rowPredicate;
         var applied = ko.observable(true);
-        this['__applied'] = applied;
+        this['__applied'] = ko.pureComputed(function () {
+          applied(applied() || grid.data.rows.displayedSynchronized());
+          return applied() && !grid.data.view.dirty();
+        });
         grid.data.predicates.push(ko.pureComputed(function () {
           applied(false);
           return throttledRowPredicate();
         }));
-        var appliedSubscription = grid.data.rows.displayedSynchronized.subscribe(function (synchronized) {
-          // TODO try to eliminate this timeout..
-          window.setTimeout(function () {
-            applied(applied() || !grid.data.view.dirty() && synchronized);
-          }, 5);
-        });
         this.dispose = function () {
-          appliedSubscription.dispose();
           throttledRowPredicate.dispose();
         };
       }
@@ -4542,8 +4563,8 @@ ko_grid_filtering = function (onefold_dom, stringifyable, indexed_list, onefold_
     return main;
   }(ko_grid_filtering_filtering);
   return ko_grid_filtering;
-}(onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid_view_state_storage, ko_data_source, ko_indexed_repeat, ko_grid_view_modes, knockout, ko_grid);
-ko_grid_full_screen = function (onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid_view_modes, ko_data_source, ko_indexed_repeat, ko_grid, knockout) {
+}(onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid_view_state_storage, ko_data_source, ko_indexed_repeat, ko_grid_view_modes, knockout, ko_grid);
+ko_grid_full_screen = function (onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid_view_modes, ko_data_source, ko_indexed_repeat, ko_grid, knockout) {
   var ko_grid_full_screen_full_screen, ko_grid_full_screen;
   var toolbar = 'ko-grid-toolbar';
   var viewModes = 'ko-grid-view-modes';
@@ -4603,8 +4624,8 @@ ko_grid_full_screen = function (onefold_dom, stringifyable, indexed_list, onefol
     return main;
   }(ko_grid_full_screen_full_screen);
   return ko_grid_full_screen;
-}(onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid_view_modes, ko_data_source, ko_indexed_repeat, ko_grid, knockout);
-ko_grid_links = function (onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
+}(onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid_view_modes, ko_data_source, ko_indexed_repeat, ko_grid, knockout);
+ko_grid_links = function (onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
   var ko_grid_links_links, ko_grid_links;
   ko_grid_links_links = function (module, ko, koGrid) {
     var extensionId = 'ko-grid-links'.indexOf('/') < 0 ? 'ko-grid-links' : 'ko-grid-links'.substring(0, 'ko-grid-links'.indexOf('/'));
@@ -4642,8 +4663,8 @@ ko_grid_links = function (onefold_dom, stringifyable, indexed_list, onefold_list
     return main;
   }(ko_grid_links_links);
   return ko_grid_links;
-}(onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
-ko_grid_resize_detection = function (onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
+}(onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
+ko_grid_resize_detection = function (onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
   var ko_grid_resize_detection_resize_detection, ko_grid_resize_detection;
   ko_grid_resize_detection_resize_detection = function (module, dom, koGrid) {
     var extensionId = 'ko-grid-resize-detection'.indexOf('/') < 0 ? 'ko-grid-resize-detection' : 'ko-grid-resize-detection'.substring(0, 'ko-grid-resize-detection'.indexOf('/'));
@@ -4679,8 +4700,8 @@ ko_grid_resize_detection = function (onefold_dom, stringifyable, indexed_list, o
     return main;
   }(ko_grid_resize_detection_resize_detection);
   return ko_grid_resize_detection;
-}(onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
-ko_grid_sorting = function (onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
+}(onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
+ko_grid_sorting = function (onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
   var ko_grid_sorting_sorting, ko_grid_sorting;
   ko_grid_sorting_sorting = function (module, koGrid, stringifyable) {
     var extensionId = 'ko-grid-sorting'.indexOf('/') < 0 ? 'ko-grid-sorting' : 'ko-grid-sorting'.substring(0, 'ko-grid-sorting'.indexOf('/'));
@@ -4756,8 +4777,8 @@ ko_grid_sorting = function (onefold_dom, stringifyable, indexed_list, onefold_li
     return main;
   }(ko_grid_sorting_sorting);
   return ko_grid_sorting;
-}(onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
-ko_grid_toolbar = function (onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
+}(onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
+ko_grid_toolbar = function (onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
   var ko_grid_toolbar_toolbar, ko_grid_toolbar;
   ko_grid_toolbar_toolbar = function (module, koGrid) {
     var extensionId = 'ko-grid-toolbar'.indexOf('/') < 0 ? 'ko-grid-toolbar' : 'ko-grid-toolbar'.substring(0, 'ko-grid-toolbar'.indexOf('/'));
@@ -4779,8 +4800,8 @@ ko_grid_toolbar = function (onefold_dom, stringifyable, indexed_list, onefold_li
     return main;
   }(ko_grid_toolbar_toolbar);
   return ko_grid_toolbar;
-}(onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
-ko_grid_virtualization = function (onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
+}(onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
+ko_grid_virtualization = function (onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
   var ko_grid_virtualization_virtualization, ko_grid_virtualization;
   ko_grid_virtualization_virtualization = function (module, ko, koGrid) {
     var extensionId = 'ko-grid-virtualization'.indexOf('/') < 0 ? 'ko-grid-virtualization' : 'ko-grid-virtualization'.substring(0, 'ko-grid-virtualization'.indexOf('/'));
@@ -4834,7 +4855,7 @@ ko_grid_virtualization = function (onefold_dom, stringifyable, indexed_list, one
     return main;
   }(ko_grid_virtualization_virtualization);
   return ko_grid_virtualization;
-}(onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
+}(onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
 
 ko_grid_bundle_bundle = {
   'dataSource': ko_data_source,
