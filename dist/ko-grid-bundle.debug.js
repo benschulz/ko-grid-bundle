@@ -3842,7 +3842,7 @@ ko_grid = function (onefold_dom, indexed_list, stringifyable, onefold_lists, one
   }(ko_grid_binding);
   return ko_grid;
 }(onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_data_source, ko_indexed_repeat, knockout);
-ko_grid_aggregate = function (onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
+ko_grid_aggregate = function (onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
   var ko_grid_aggregate_aggregate, ko_grid_aggregate;
   ko_grid_aggregate_aggregate = function (module, ko, koGrid) {
     var extensionId = 'ko-grid-aggregate'.substr(0, 'ko-grid-aggregate'.indexOf('/')).substr(0, 'ko-grid-aggregate'.indexOf('/'));
@@ -3966,8 +3966,8 @@ ko_grid_aggregate = function (onefold_dom, indexed_list, stringifyable, onefold_
     return main;
   }(ko_grid_aggregate_aggregate);
   return ko_grid_aggregate;
-}(onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
-ko_grid_column_sizing = function (onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
+}(onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
+ko_grid_column_sizing = function (onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
   var ko_grid_column_sizing_column_sizing, ko_grid_column_sizing;
   ko_grid_column_sizing_column_sizing = function (module, koGrid) {
     var extensionId = 'ko-grid-column-sizing'.indexOf('/') < 0 ? 'ko-grid-column-sizing' : 'ko-grid-column-sizing'.substring(0, 'ko-grid-column-sizing'.indexOf('/'));
@@ -3985,8 +3985,8 @@ ko_grid_column_sizing = function (onefold_dom, indexed_list, stringifyable, onef
     return main;
   }(ko_grid_column_sizing_column_sizing);
   return ko_grid_column_sizing;
-}(onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
-ko_grid_column_resizing = function (onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid_column_sizing, ko_data_source, ko_indexed_repeat, ko_grid, knockout) {
+}(onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
+ko_grid_column_resizing = function (onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid_column_sizing, ko_data_source, ko_indexed_repeat, ko_grid, knockout) {
   var ko_grid_column_resizing_column_resizing, ko_grid_column_resizing;
   var columnSizing = 'ko-grid-column-sizing';
   ko_grid_column_resizing_column_resizing = function (module, ko, dom, koGrid) {
@@ -4086,8 +4086,8 @@ ko_grid_column_resizing = function (onefold_dom, indexed_list, stringifyable, on
     return main;
   }(ko_grid_column_resizing_column_resizing);
   return ko_grid_column_resizing;
-}(onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid_column_sizing, ko_data_source, ko_indexed_repeat, ko_grid, knockout);
-ko_grid_view_modes = function (onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
+}(onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid_column_sizing, ko_data_source, ko_indexed_repeat, ko_grid, knockout);
+ko_grid_view_modes = function (onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
   var ko_grid_view_modes_view_modes, ko_grid_view_modes;
   ko_grid_view_modes_view_modes = function (module, ko, js, koGrid) {
     var extensionId = 'ko-grid-view-modes'.indexOf('/') < 0 ? 'ko-grid-view-modes' : 'ko-grid-view-modes'.substring(0, 'ko-grid-view-modes'.indexOf('/'));
@@ -4136,8 +4136,8 @@ ko_grid_view_modes = function (onefold_dom, indexed_list, stringifyable, onefold
     return main;
   }(ko_grid_view_modes_view_modes);
   return ko_grid_view_modes;
-}(onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
-ko_grid_view_state_storage = function (onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid_view_modes, ko_data_source, ko_indexed_repeat, ko_grid, knockout) {
+}(onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
+ko_grid_view_state_storage = function (onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid_view_modes, ko_data_source, ko_indexed_repeat, ko_grid, knockout) {
   var ko_grid_view_state_storage_view_state_storage, ko_grid_view_state_storage;
   var viewModes = 'ko-grid-view-modes';
   ko_grid_view_state_storage_view_state_storage = function (module, js, koGrid) {
@@ -4263,8 +4263,8 @@ ko_grid_view_state_storage = function (onefold_dom, indexed_list, stringifyable,
     return main;
   }(ko_grid_view_state_storage_view_state_storage);
   return ko_grid_view_state_storage;
-}(onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid_view_modes, ko_data_source, ko_indexed_repeat, ko_grid, knockout);
-ko_grid_column_scaling = function (onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid_column_resizing, ko_grid_view_state_storage, ko_data_source, ko_indexed_repeat, ko_grid_column_sizing, ko_grid_view_modes, knockout, ko_grid) {
+}(onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid_view_modes, ko_data_source, ko_indexed_repeat, ko_grid, knockout);
+ko_grid_column_scaling = function (stringifyable, onefold_dom, indexed_list, onefold_lists, onefold_js, ko_grid_column_resizing, ko_grid_view_state_storage, ko_data_source, ko_indexed_repeat, ko_grid_column_sizing, ko_grid_view_modes, knockout, ko_grid) {
   var ko_grid_column_scaling_column_scaling, ko_grid_column_scaling;
   var columnSizing = 'ko-grid-column-sizing';
   var viewStateStorage = 'ko-grid-view-state-storage';
@@ -4352,8 +4352,8 @@ ko_grid_column_scaling = function (onefold_dom, indexed_list, stringifyable, one
     return main;
   }(ko_grid_column_scaling_column_scaling);
   return ko_grid_column_scaling;
-}(onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid_column_resizing, ko_grid_view_state_storage, ko_data_source, ko_indexed_repeat, ko_grid_column_sizing, ko_grid_view_modes, knockout, ko_grid);
-ko_grid_column_width_persistence = function (onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid_column_sizing, ko_grid_view_state_storage, ko_data_source, ko_indexed_repeat, ko_grid_view_modes, knockout, ko_grid) {
+}(stringifyable, onefold_dom, indexed_list, onefold_lists, onefold_js, ko_grid_column_resizing, ko_grid_view_state_storage, ko_data_source, ko_indexed_repeat, ko_grid_column_sizing, ko_grid_view_modes, knockout, ko_grid);
+ko_grid_column_width_persistence = function (onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid_column_sizing, ko_grid_view_state_storage, ko_data_source, ko_indexed_repeat, ko_grid_view_modes, knockout, ko_grid) {
   var ko_grid_column_width_persistence_column_width_persistence, ko_grid_column_width_persistence;
   var columnSizing = 'ko-grid-column-sizing';
   var viewStateStorage = 'ko-grid-view-state-storage';
@@ -4391,8 +4391,8 @@ ko_grid_column_width_persistence = function (onefold_dom, indexed_list, stringif
     return main;
   }(ko_grid_column_width_persistence_column_width_persistence);
   return ko_grid_column_width_persistence;
-}(onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid_column_sizing, ko_grid_view_state_storage, ko_data_source, ko_indexed_repeat, ko_grid_view_modes, knockout, ko_grid);
-ko_grid_export = function (onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
+}(onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid_column_sizing, ko_grid_view_state_storage, ko_data_source, ko_indexed_repeat, ko_grid_view_modes, knockout, ko_grid);
+ko_grid_export = function (onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
   var ko_grid_export_export, ko_grid_export;
   var toolbar = 'ko-grid-toolbar';
   ko_grid_export_export = function (module, koGrid) {
@@ -4466,7 +4466,7 @@ ko_grid_export = function (onefold_dom, indexed_list, stringifyable, onefold_lis
     return main;
   }(ko_grid_export_export);
   return ko_grid_export;
-}(onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
+}(onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
 ko_grid_filtering = function (onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid_view_state_storage, ko_data_source, ko_indexed_repeat, ko_grid_view_modes, knockout, ko_grid) {
   var text, text_ko_grid_filtering_filteringhtmltemplate, ko_grid_filtering_filtering, ko_grid_filtering;
   text = {
@@ -4564,7 +4564,7 @@ ko_grid_filtering = function (onefold_dom, indexed_list, stringifyable, onefold_
   }(ko_grid_filtering_filtering);
   return ko_grid_filtering;
 }(onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid_view_state_storage, ko_data_source, ko_indexed_repeat, ko_grid_view_modes, knockout, ko_grid);
-ko_grid_full_screen = function (onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid_view_modes, ko_data_source, ko_indexed_repeat, ko_grid, knockout) {
+ko_grid_full_screen = function (onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid_view_modes, ko_data_source, ko_indexed_repeat, ko_grid, knockout) {
   var ko_grid_full_screen_full_screen, ko_grid_full_screen;
   var toolbar = 'ko-grid-toolbar';
   var viewModes = 'ko-grid-view-modes';
@@ -4624,8 +4624,8 @@ ko_grid_full_screen = function (onefold_dom, indexed_list, stringifyable, onefol
     return main;
   }(ko_grid_full_screen_full_screen);
   return ko_grid_full_screen;
-}(onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid_view_modes, ko_data_source, ko_indexed_repeat, ko_grid, knockout);
-ko_grid_links = function (onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
+}(onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid_view_modes, ko_data_source, ko_indexed_repeat, ko_grid, knockout);
+ko_grid_links = function (onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
   var ko_grid_links_links, ko_grid_links;
   ko_grid_links_links = function (module, ko, koGrid) {
     var extensionId = 'ko-grid-links'.indexOf('/') < 0 ? 'ko-grid-links' : 'ko-grid-links'.substring(0, 'ko-grid-links'.indexOf('/'));
@@ -4663,8 +4663,8 @@ ko_grid_links = function (onefold_dom, indexed_list, stringifyable, onefold_list
     return main;
   }(ko_grid_links_links);
   return ko_grid_links;
-}(onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
-ko_grid_resize_detection = function (onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
+}(onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
+ko_grid_resize_detection = function (onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
   var ko_grid_resize_detection_resize_detection, ko_grid_resize_detection;
   ko_grid_resize_detection_resize_detection = function (module, dom, koGrid) {
     var extensionId = 'ko-grid-resize-detection'.indexOf('/') < 0 ? 'ko-grid-resize-detection' : 'ko-grid-resize-detection'.substring(0, 'ko-grid-resize-detection'.indexOf('/'));
@@ -4700,8 +4700,8 @@ ko_grid_resize_detection = function (onefold_dom, indexed_list, stringifyable, o
     return main;
   }(ko_grid_resize_detection_resize_detection);
   return ko_grid_resize_detection;
-}(onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
-ko_grid_sorting = function (onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
+}(onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
+ko_grid_sorting = function (onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
   var ko_grid_sorting_sorting, ko_grid_sorting;
   ko_grid_sorting_sorting = function (module, koGrid, stringifyable) {
     var extensionId = 'ko-grid-sorting'.indexOf('/') < 0 ? 'ko-grid-sorting' : 'ko-grid-sorting'.substring(0, 'ko-grid-sorting'.indexOf('/'));
@@ -4777,8 +4777,8 @@ ko_grid_sorting = function (onefold_dom, indexed_list, stringifyable, onefold_li
     return main;
   }(ko_grid_sorting_sorting);
   return ko_grid_sorting;
-}(onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
-ko_grid_toolbar = function (onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
+}(onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
+ko_grid_toolbar = function (onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
   var ko_grid_toolbar_toolbar, ko_grid_toolbar;
   ko_grid_toolbar_toolbar = function (module, koGrid) {
     var extensionId = 'ko-grid-toolbar'.indexOf('/') < 0 ? 'ko-grid-toolbar' : 'ko-grid-toolbar'.substring(0, 'ko-grid-toolbar'.indexOf('/'));
@@ -4800,8 +4800,8 @@ ko_grid_toolbar = function (onefold_dom, indexed_list, stringifyable, onefold_li
     return main;
   }(ko_grid_toolbar_toolbar);
   return ko_grid_toolbar;
-}(onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
-ko_grid_virtualization = function (onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
+}(onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
+ko_grid_virtualization = function (onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
   var ko_grid_virtualization_virtualization, ko_grid_virtualization;
   ko_grid_virtualization_virtualization = function (module, ko, koGrid) {
     var extensionId = 'ko-grid-virtualization'.indexOf('/') < 0 ? 'ko-grid-virtualization' : 'ko-grid-virtualization'.substring(0, 'ko-grid-virtualization'.indexOf('/'));
@@ -4855,7 +4855,7 @@ ko_grid_virtualization = function (onefold_dom, indexed_list, stringifyable, one
     return main;
   }(ko_grid_virtualization_virtualization);
   return ko_grid_virtualization;
-}(onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
+}(onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
 
 ko_grid_bundle_bundle = {
   'dataSource': ko_data_source,
