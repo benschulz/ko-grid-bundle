@@ -18,6 +18,7 @@
     "ko-data-source": "benschulz/ko-data-source",
     "ko-grid": "benschulz/ko-grid",
     "ko-grid-aggregate": "benschulz/ko-grid-aggregate",
+    "ko-grid-cell-navigation": "benschulz/ko-grid-cell-navigation",
     "ko-grid-column-resizing": "benschulz/ko-grid-column-resizing",
     "ko-grid-column-scaling": "benschulz/ko-grid-column-scaling",
     "ko-grid-column-sizing": "benschulz/ko-grid-column-sizing",

@@ -18,7 +18,7 @@
  * Copyright (c) 2015, Ben Schulz
  * License: BSD 3-clause (http://opensource.org/licenses/BSD-3-Clause)
  */
-var onefold_js, onefold_lists, indexed_list, stringifyable, ko_data_source, onefold_dom, ko_indexed_repeat, ko_grid, ko_grid_aggregate, ko_grid_column_sizing, ko_grid_column_resizing, ko_grid_view_modes, ko_grid_view_state_storage, ko_grid_column_scaling, ko_grid_column_width_persistence, ko_grid_export, ko_grid_filtering, ko_grid_full_screen, ko_grid_links, ko_grid_resize_detection, ko_grid_sorting, ko_grid_toolbar, ko_grid_virtualization, ko_grid_bundle_bundle, ko_grid_bundle;
+var onefold_js, onefold_lists, indexed_list, stringifyable, ko_data_source, onefold_dom, ko_indexed_repeat, ko_grid, ko_grid_aggregate, ko_grid_cell_navigation, ko_grid_column_sizing, ko_grid_column_resizing, ko_grid_view_modes, ko_grid_view_state_storage, ko_grid_column_scaling, ko_grid_column_width_persistence, ko_grid_export, ko_grid_filtering, ko_grid_full_screen, ko_grid_links, ko_grid_resize_detection, ko_grid_sorting, ko_grid_toolbar, ko_grid_virtualization, ko_grid_bundle_bundle, ko_grid_bundle;
 onefold_js = function () {
   var onefold_js_objects, onefold_js_arrays, onefold_js_strings, onefold_js_internal, onefold_js;
   onefold_js_objects = function () {
@@ -1464,32 +1464,42 @@ ko_data_source = function (indexed_list, stringifyable, onefold_lists, onefold_j
     return ListStream;
   }(onefold_js, ko_data_source_streams_mapped_stream);
   ko_data_source_default_observable_state_transitioner = function (ko) {
-    return function DefaultObservableStateTransitioner() {
-      var isNonObservableProperty = {};
-      Array.prototype.slice.call(arguments).forEach(function (property) {
-        isNonObservableProperty[property] = true;
-      });
-      this.constructor = function (entry) {
+    function DefaultObservableStateTransitioner(options) {
+      this.__isObservableProperty = false;
+      (options && options['observableProperties'] || []).forEach(function (p) {
+        this.__isObservableProperty = this.__isObservableProperty || {};
+        this.__isObservableProperty[p] = true;
+      }.bind(this));
+    }
+    DefaultObservableStateTransitioner.prototype = {
+      'constructor': function (entry) {
+        var isObservableProperty = this.__isObservableProperty;
+        if (!isObservableProperty)
+          return entry;
         var observable = {};
         Object.keys(entry).forEach(function (p) {
-          if (isNonObservableProperty[p])
-            observable[p] = entry[p];
-          else
+          if (isObservableProperty && isObservableProperty[p])
             observable[p] = ko.observable(entry[p]);
+          else
+            observable[p] = entry[p];
         });
         return observable;
-      };
-      this.updater = function (observable, updatedEntry) {
+      },
+      'updater': function (observable, updatedEntry) {
+        var isObservableProperty = this.__isObservableProperty;
+        if (!isObservableProperty)
+          return observable;
         Object.keys(updatedEntry).filter(function (p) {
-          return !isNonObservableProperty[p];
+          return isObservableProperty && isObservableProperty[p];
         }).forEach(function (p) {
           return observable[p](updatedEntry[p]);
         });
         return observable;
-      };
-      this.destructor = function () {
-      };
+      },
+      'destructor': function () {
+      }
     };
+    return DefaultObservableStateTransitioner;
   }(knockout);
   ko_data_source_observable_entries = function (ko, js, DefaultObservableStateTransitioner) {
     /** @constructor */
@@ -1523,7 +1533,7 @@ ko_data_source = function (indexed_list, stringifyable, onefold_lists, onefold_j
         return entry;
       };
       var addEntry = function (id, value) {
-        var entry = new ObservableEntry(observableStateTransitioner.constructor(value));
+        var entry = new ObservableEntry(observableStateTransitioner['constructor'](value));
         hashtable[id] = entry;
         return entry;
       };
@@ -1531,7 +1541,7 @@ ko_data_source = function (indexed_list, stringifyable, onefold_lists, onefold_j
         var id = idSelector(value);
         var entry = lookupEntry(id);
         if (--entry.refcount === 0) {
-          observableStateTransitioner.destructor(entry.observable);
+          destroy(entry);
           delete hashtable[id];
         }
       };
@@ -1543,8 +1553,10 @@ ko_data_source = function (indexed_list, stringifyable, onefold_lists, onefold_j
           var id = idSelector(addedEntry);
           if (js.objects.hasOwn(hashtable, id)) {
             var entry = hashtable[id];
-            entry.observable = observableStateTransitioner.constructor(addedEntry);
-            entry.optionalObservable(entry.observable);
+            if (!entry.observable) {
+              entry.observable = observableStateTransitioner['constructor'](addedEntry);
+              entry.optionalObservable(entry.observable);
+            }
           }
         });
       };
@@ -1553,7 +1565,7 @@ ko_data_source = function (indexed_list, stringifyable, onefold_lists, onefold_j
           var id = idSelector(updatedEntry);
           if (js.objects.hasOwn(hashtable, id)) {
             var entry = hashtable[id];
-            observableStateTransitioner.updater(entry.observable, updatedEntry);
+            observableStateTransitioner['updater'](entry.observable, updatedEntry);
           }
         });
       };
@@ -1562,25 +1574,28 @@ ko_data_source = function (indexed_list, stringifyable, onefold_lists, onefold_j
           var updatedValue = updatedValueSupplier(id);
           if (updatedValue) {
             if (entry.observable) {
-              observableStateTransitioner.updater(entry.observable, updatedValue);
+              observableStateTransitioner['updater'](entry.observable, updatedValue);
             } else {
-              entry.observable = observableStateTransitioner.constructor(updatedValue);
+              entry.observable = observableStateTransitioner['constructor'](updatedValue);
               entry.optionalObservable(entry.observable);
             }
           } else {
-            entry.optionalObservable(null);
-            observableStateTransitioner.destructor(entry.observable);
+            destroy(entry);
           }
         });
       };
       this.destroyAll = function (idPredicate) {
         js.objects.forEachProperty(hashtable, function (id, entry) {
-          if (idPredicate(id)) {
-            entry.optionalObservable(null);
-            observableStateTransitioner.destructor(entry.observable);
-          }
+          if (idPredicate(id))
+            destroy(entry);
         });
       };
+      function destroy(entry) {
+        var observable = entry.observable;
+        entry.optionalObservable(null);
+        entry.observable = null;
+        observableStateTransitioner['destructor'](observable);
+      }
       this.dispose = function () {
         this.destroyAll(function () {
           return true;
@@ -2030,12 +2045,19 @@ ko_data_source = function (indexed_list, stringifyable, onefold_lists, onefold_j
       });
       var previousValues = lists.newArrayList();
       var receivedValues = ko.observable();
+      var cache = [];
+      var cacheRangeFroms = [];
+      var cacheRangeTos = [];
+      var lastPredicate = null;
+      var lastComparator = null;
       var computer = ko.pureComputed(function () {
         if (requestPending.peek())
           return requestPending();
+        var q = query.unwrapArguments().normalize();
+        if (isCached(q))
+          return receivedValues(cache.slice(q.offset, q.offset + q.limit));
         dirty(true);
         requestPending(true);
-        var q = query.unwrapArguments().normalize();
         window.setTimeout(function () {
           if (!q.equals(query.unwrapArguments().normalize()))
             return requestPending(false);
@@ -2048,6 +2070,7 @@ ko_data_source = function (indexed_list, stringifyable, onefold_lists, onefold_j
             delete r['values'];
             dataSource.__size(r['unfilteredSize']);
             metadata(r);
+            cacheResult(q, newlyReceivedValues);
           }).then(function () {
             dirty(false);
             requestPending(false);
@@ -2056,6 +2079,47 @@ ko_data_source = function (indexed_list, stringifyable, onefold_lists, onefold_j
           });
         });  // TODO maybe the user wants to specify a delay > 0 ?
       });
+      function isCached(q) {
+        if (q.predicate !== lastPredicate || q.comparator !== lastComparator)
+          return false;
+        for (var i = 0, l = cacheRangeFroms.length; i < l; ++i) {
+          var from = cacheRangeFroms[i], to = cacheRangeTos[i];
+          if (from <= q.offset && to >= q.offset + q.limit)
+            return true;
+        }
+        return false;
+      }
+      function cacheResult(q, result) {
+        if (q.predicate !== lastPredicate || q.comparator !== lastComparator) {
+          resetCache(q.predicate, q.comparator);
+        }
+        var from = q.offset, to = from + q.limit;
+        var mergedFrom = from, mergedTo = to;
+        var i, j, l;
+        for (i = 0, j = 0, l = cacheRangeFroms.length; i < l; ++i) {
+          var rangeFrom = cacheRangeFroms[j] = cacheRangeFroms[i], rangeTo = cacheRangeTos[j] = cacheRangeTos[i];
+          if (mergedFrom <= rangeTo && mergedTo >= rangeFrom) {
+            mergedFrom = Math.min(rangeFrom, mergedFrom);
+            mergedTo = Math.max(rangeTo, mergedTo);
+          } else
+            ++j;
+        }
+        cacheRangeFroms.length = cacheRangeTos.length = j;
+        cacheRangeFroms.push(mergedFrom);
+        cacheRangeTos.push(mergedTo >= metadata()['filteredSize'] ? Number.POSITIVE_INFINITY : mergedTo);
+        for (i = 0, l = result.length; i < l; ++i)
+          cache[from + i] = result[i];
+        window.console.log('Cache ranges:');
+        for (i = 0, l = cacheRangeFroms.length; i < l; ++i)
+          window.console.log('[' + cacheRangeFroms[i] + ', ' + cacheRangeTos[i] + ']');
+      }
+      function resetCache(predicate, comparator) {
+        cache = [];
+        cacheRangeFroms = [];
+        cacheRangeTos = [];
+        lastPredicate = predicate;
+        lastComparator = comparator;
+      }
       var values = ko.pureComputed(function () {
         computer();
         // wake up the computer
@@ -2099,7 +2163,7 @@ ko_data_source = function (indexed_list, stringifyable, onefold_lists, onefold_j
         return metadata()['filteredSize'];
       });
       this.__size = ko.pureComputed(function () {
-        return values().size();
+        return values().length;
       });
       this.__dispose = function () {
         computer.dispose();
@@ -2269,6 +2333,8 @@ ko_indexed_repeat = function (knockout) {
     var OPTION_AS = 'as';
     var OPTION_AT = 'at';
     var OPTION_ALLOW_ELEMENT_RECYCLING = 'allowElementRecycling';
+    var OPTION_BEFORE_ELEMENT_RECYCLYING = 'beforeElementRecycling';
+    var OPTION_AFTER_ELEMENT_RECYCLED = 'afterElementRecycled';
     var OPTION_ALLOW_DEVIATION = 'allowDeviation';
     var OPTION_ON_DEVIATION = 'onDeviation';
     var OPTION_ON_SYNCHRONIZATION = 'onSynchronization';
@@ -2304,6 +2370,10 @@ ko_indexed_repeat = function (knockout) {
       self.itemVariableName = value[OPTION_AS] || '$item';
       self.indexVariableName = value[OPTION_AT] || '$index';
       self.allowElementRecycling = value[OPTION_ALLOW_ELEMENT_RECYCLING] !== false;
+      self.reportElementRecycling = value[OPTION_BEFORE_ELEMENT_RECYCLYING] || function () {
+      };
+      self.reportElementRecycled = value[OPTION_AFTER_ELEMENT_RECYCLED] || function () {
+      };
       self.allowDeviation = value[OPTION_ALLOW_DEVIATION] === true;
       self.reportDeviation = value[OPTION_ON_DEVIATION] || function () {
       };
@@ -2470,11 +2540,13 @@ ko_indexed_repeat = function (knockout) {
         presumedDead.clear();
       }
       function performNecromancy(carcass, addedItem) {
+        var revivedBindingContext = ko.contextFor(carcass);
+        configuration.reportElementRecycling(carcass, revivedBindingContext);
         carcass.style.display = '';
         insertNodeAfter(carcass, addedItem.previousId);
-        var revivedBindingContext = ko.contextFor(carcass);
         revivedBindingContext[itemVariableName](addedItem.item);
         revivedBindingContext[indexVariableName](addedItem.index);
+        configuration.reportElementRecycled(carcass, revivedBindingContext);
         itemElements.add(addedItem.id, new ElementWithBindingContext(carcass, revivedBindingContext));
       }
       function insertElementFor(newborn) {
@@ -2696,7 +2768,7 @@ ko_grid = function (onefold_dom, indexed_list, stringifyable, onefold_lists, one
     }
   };
   text_ko_grid_columnshtmltemplate = '<colgroup class="ko-grid-colgroup">\n    <col class="ko-grid-col" data-bind="indexedRepeat: { forEach: columns.displayed, indexedBy: \'id\', as: \'column\' }" data-repeat-bind="__gridColumn: column()">\n</colgroup>';
-  ko_grid_columns = function (ko, columnsTemplate) {
+  ko_grid_columns = function (ko, js, columnsTemplate) {
     var TO_STRING_VALUE_RENDERER = function (cellValue) {
       return cellValue === null ? '' : '' + cellValue;
     };
@@ -2853,20 +2925,30 @@ ko_grid = function (onefold_dom, indexed_list, stringifyable, onefold_lists, one
         this.renderValue = override(this.renderValue);
       }.bind(this);
       this.overrideValueBinding = function (override) {
-        var overridden = override({
-          init: this._initCell,
-          update: this._updateCell
-        });
+        var overridden = this._overrideValueBinding(override);
         if (!overridden || !overridden.init || !overridden.update)
           throw new Error('The cell value binding must define an `init` as well as an `update` method.');
         this._initCell = overridden.init;
         this._updateCell = overridden.update;
       }.bind(this);
+      this._overrideValueBinding = function (override) {
+        var overridden = override(js.objects.extend({
+          init: this._initCell,
+          update: this._updateCell
+        }, {
+          'init': this._initCell,
+          'update': this._updateCell
+        }));
+        return {
+          init: overridden.init || overridden['init'],
+          update: overridden.update || overridden['update']
+        };
+      }.bind(this);
       this['overrideValueRendering'] = this.overrideValueRendering;
       this['overrideValueBinding'] = this.overrideValueBinding;
     }
     return columns;
-  }(knockout, text_ko_grid_columnshtmltemplate);
+  }(knockout, onefold_js, text_ko_grid_columnshtmltemplate);
   ko_grid_application_event_dispatcher = function (js, dom) {
     /** @constructor */
     function ApplicationEvent(originalEvent) {
@@ -2940,9 +3022,10 @@ ko_grid = function (onefold_dom, indexed_list, stringifyable, onefold_lists, one
     }
     return ApplicationEventDispatcher;
   }(onefold_js, onefold_dom);
-  text_ko_grid_datahtmltemplate = '<tbody class="ko-grid-tbody" data-bind="_gridWidth: columns.combinedWidth() + \'px\'">\n    <tr class="ko-grid-tr ko-grid-row"\n        data-bind="indexedRepeat: {\n            forEach: data.rows.displayed,\n            indexedBy: function(r) { return grid.data.observableValueSelector(ko.unwrap(r[grid.primaryKey])); },\n            as: \'row\',\n            at: \'rowIndex\',\n            allowDeviation: true,\n            onDeviation: data.rows.__handleDisplayedRowsDeviate,\n            onSynchronization: data.rows.__handleDisplayedRowsSynchronized }"\n        data-repeat-bind="__gridRow: { classify: grid.data.rows.__classify, row: row, index: rowIndex }">\n\n        <td data-bind="indexedRepeat: { forEach: columns.displayed, indexedBy: \'id\', as: \'column\', allowElementRecycling: false }"\n            data-repeat-bind="__gridCell: { row: row, column: column }"></td>\n    </tr>\n</tbody>';
+  text_ko_grid_datahtmltemplate = '<tbody class="ko-grid-tbody" data-bind="_gridWidth: columns.combinedWidth() + \'px\'">\n    <tr class="ko-grid-tr ko-grid-row"\n        data-bind="indexedRepeat: {\n            forEach: data.rows.displayed,\n            indexedBy: function(r) { return grid.data.observableValueSelector(ko.unwrap(r[grid.primaryKey])); },\n            as: \'row\',\n            at: \'rowIndex\',\n            beforeElementRecycling: data.rows.__handleElementRecycling,\n            afterElementRecycled: data.rows.__handleElementRecycled,\n            allowDeviation: true,\n            onDeviation: data.rows.__handleDisplayedRowsDeviate,\n            onSynchronization: data.rows.__handleDisplayedRowsSynchronized }"\n        data-repeat-bind="__gridRow: { classify: grid.data.rows.__classify, row: row, index: rowIndex }">\n\n        <td data-bind="indexedRepeat: { forEach: columns.displayed, indexedBy: \'id\', as: \'column\', allowElementRecycling: false }"\n            data-repeat-bind="__gridCell: { row: row, column: column }"></td>\n    </tr>\n</tbody>';
   ko_grid_data = function (ko, js, stringifyable, ApplicationEventDispatcher, dataTemplate) {
     var ELEMENT_NODE = window.Node.ELEMENT_NODE;
+    var HIJACKED_KEY = '__@__hijacked';
     var document = window.document;
     var data = {
       init: function (template) {
@@ -3107,37 +3190,78 @@ ko_grid = function (onefold_dom, indexed_list, stringifyable, onefold_lists, one
         }
         throw new Error('Column `' + n + '` does not exist.');
       };
+      var hijacks = [];
+      this.rows['__handleElementRecycling'] = function (element) {
+        Array.prototype.slice.call(element.querySelectorAll('.ko-grid-cell')).forEach(function (c) {
+          return c[HIJACKED_KEY] = null;
+        });
+      };
+      this.rows['__handleElementRecycled'] = function (element, bindingContext) {
+        var row = bindingContext['row']();
+        var rowId = this.observableValueSelector(ko.unwrap(row[grid.primaryKey]));
+        if (js.objects.hasOwn(hijacks, rowId)) {
+          hijacks[rowId].forEach(function (h) {
+            var column = h.column;
+            var columnIndex = grid.columns.displayed().indexOf(column);
+            var cell = element.children[columnIndex];
+            h.element = cell;
+            cell[HIJACKED_KEY] = h;
+            if (h.init)
+              initCellElement(cell, row, column);
+            updateCellElement(cell, row, column);
+          });
+        }
+      }.bind(this);
       this.lookupCell = function (row, column) {
-        var rowIndex = this.rows.displayed().indexOf(row);
+        var rowId = this.observableValueSelector(ko.unwrap(row[grid.primaryKey]));
+        var rowIndex = this.rows.displayed().tryFirstIndexOf(row);
         var columnIndex = grid.columns.displayed().indexOf(column);
         var element = nthCellOfRow(nthRowElement(rowIndex), columnIndex);
-        function hijack(classes) {
-          if (element.hasAttribute('data-hijacked'))
+        function hijack(classes, override) {
+          if (element[HIJACKED_KEY])
             throw new Error('Illegal state: This cell is already hijacked.');
-          while (element.firstChild)
-            ko.removeNode(element.firstChild);
-          element.className += ' ' + classes;
-          element.setAttribute('data-hijacked', 'hijacked ' + classes);
+          var binding = column._overrideValueBinding(override || function (b) {
+            return b;
+          });
+          var hijacked = element[HIJACKED_KEY] = {
+            element: element,
+            column: column,
+            classes: classes,
+            init: binding.init,
+            update: binding.update
+          };
+          var rowHijacks = hijacks[rowId] = hijacks[rowId] || [];
+          rowHijacks.push(hijacked);
+          if (hijacked.init)
+            initCellElement(element, row, column);
+          updateCellElement(element, row, column);
           function release() {
-            element.removeAttribute('data-hijacked');
-            while (element.firstChild)
-              ko.removeNode(element.firstChild);
-            var rowObservable = ko.contextFor(element)['row']();
-            if (column._initCell)
-              column._initCell(element, rowObservable, column);
+            if (rowHijacks.length === 1)
+              delete hijacks[rowId];
             else
-              element.appendChild(document.createTextNode(''));
-            updateCellElement(element, rowObservable(), column);
+              rowHijacks.splice(rowHijacks.indexOf(hijacked), 1);
+            if (hijacked.element[HIJACKED_KEY] !== hijacked)
+              return;
+            // the element was recycled for another entry
+            hijacked.element[HIJACKED_KEY] = null;
+            initCellElement(hijacked.element, row, column);
+            updateCellElement(hijacked.element, row, column);
           }
-          return {
+          return js.objects.extend({
+            release: release,
+            dispose: release
+          }, {
             'dispose': release,
             'release': release
-          };
+          });
         }
-        return {
+        return js.objects.extend({
+          element: element,
+          hijack: hijack
+        }, {
           'element': element,
           'hijack': hijack
-        };
+        });
       }.bind(this);
       this['lookupCell'] = this.lookupCell;
       return function () {
@@ -3167,15 +3291,7 @@ ko_grid = function (onefold_dom, indexed_list, stringifyable, onefold_lists, one
     ko.bindingHandlers['__gridCell'] = {
       'init': function (element, valueAccessor) {
         var value = valueAccessor();
-        var row = value['row'];
-        var column = value['column'];
-        var columnValue = column();
-        while (element.firstChild)
-          ko.removeNode(element.firstChild);
-        if (columnValue._initCell)
-          columnValue._initCell(element, row, column);
-        else
-          element.appendChild(document.createTextNode(''));
+        initCellElement(element, value['row'], value['column']());
         return { 'controlsDescendantBindings': true };
       },
       'update': function (element, valueAccessor) {
@@ -3186,20 +3302,30 @@ ko_grid = function (onefold_dom, indexed_list, stringifyable, onefold_lists, one
         updateCellElement(element, row, column);
       }
     };
+    function initCellElement(element, row, column) {
+      var hijacked = element[HIJACKED_KEY];
+      while (element.firstChild)
+        ko.removeNode(element.firstChild);
+      if (hijacked && hijacked.init)
+        hijacked.init(element, row, column);
+      if (column._initCell)
+        column._initCell(element, row, column);
+      else
+        element.appendChild(document.createTextNode(''));
+    }
     function updateCellElement(element, row, column) {
       var cell = row[column.property];
       var cellValue = cell && ko.unwrap(cell);
-      var hijacked = element.getAttribute('data-hijacked');
+      var hijacked = element[HIJACKED_KEY];
       // TODO since there may be thousands of cells we want to keep the dependency count at two (row+cell) => peek => need separate change handler for cellClasses
       var columnClasses = column.cellClasses.peek().join(' ');
-      element.className = 'ko-grid-td ko-grid-cell ' + columnClasses + (hijacked ? ' ' + hijacked : '');
-      if (hijacked)
-        return;
+      element.className = 'ko-grid-td ko-grid-cell ' + columnClasses + (hijacked ? ' ' + hijacked.classes : '');
+      if (hijacked && hijacked.update)
+        hijacked.update(element, cell, row, column);
       if (column._initCell)
         column._updateCell(element, cell, row, column);
-      else {
+      else
         element.lastChild.nodeValue = column.renderValue(cellValue);
-      }
     }
     return data;
   }(knockout, onefold_js, stringifyable, ko_grid_application_event_dispatcher, text_ko_grid_datahtmltemplate);
@@ -3967,6 +4093,107 @@ ko_grid_aggregate = function (onefold_dom, stringifyable, indexed_list, onefold_
   }(ko_grid_aggregate_aggregate);
   return ko_grid_aggregate;
 }(onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
+ko_grid_cell_navigation = function (onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
+  var ko_grid_cell_navigation_cell_navigation, ko_grid_cell_navigation;
+  ko_grid_cell_navigation_cell_navigation = function (module, ko, koGrid) {
+    var extensionId = 'ko-grid-cell-navigation'.indexOf('/') < 0 ? 'ko-grid-cell-navigation' : 'ko-grid-cell-navigation'.substring(0, 'ko-grid-cell-navigation'.indexOf('/'));
+    var KEY_CODE_ARROW_UP = 38, KEY_CODE_ARROW_LEFT = 37, KEY_CODE_ARROW_RIGHT = 39, KEY_CODE_ARROW_DOWN = 40, KEY_CODE_TAB = 9, KEY_CODE_ENTER = 13;
+    var KEY_CODES = [
+      KEY_CODE_ARROW_UP,
+      KEY_CODE_ARROW_LEFT,
+      KEY_CODE_ARROW_RIGHT,
+      KEY_CODE_ARROW_DOWN,
+      KEY_CODE_TAB,
+      KEY_CODE_ENTER
+    ];
+    koGrid.defineExtension(extensionId, {
+      initializer: function (template) {
+        template.before('table').insert('<textarea class="ko-grid-focus-parking" tabIndex="-1" style="position: absolute; z-index: 10; overflow: hidden; box-sizing: border-box; width: 1em; height: 1em; top: -3em; left: -3em; resize: none; border: none;"></textarea>');
+      },
+      Constructor: function CellNavigationExtension(bindingValue, config, grid) {
+        var scroller = null, focusParking = null, selectedRow = null, selectedColumn = null, hijacked = null;
+        grid.postApplyBindings(function () {
+          scroller = grid.element.querySelector('.ko-grid-table-scroller');
+          focusParking = grid.element.querySelector('.ko-grid-focus-parking');
+        });
+        grid.data.onCellClick(function (e, cellValue, row, column) {
+          return select(row, column);
+        });
+        grid.rootElement.addEventListener('keydown', function (e) {
+          if (KEY_CODES.indexOf(e.keyCode) < 0)
+            return;
+          e.preventDefault();
+          var multiplier = e.shiftKey ? -1 : 1;
+          switch (e.keyCode) {
+          case KEY_CODE_ARROW_UP:
+            return move(-1, 0);
+          case KEY_CODE_ARROW_LEFT:
+            return move(0, -1);
+          case KEY_CODE_ARROW_RIGHT:
+            return move(0, 1);
+          case KEY_CODE_ARROW_DOWN:
+            return move(1, 0);
+          case KEY_CODE_TAB:
+            return move(0, multiplier, true);
+          case KEY_CODE_ENTER:
+            return move(multiplier, 0);
+          }
+        });
+        /**
+         * @param {number} rowWise
+         * @param {number} columnWise
+         * @param {boolean=} wrap
+         */
+        function move(rowWise, columnWise, wrap) {
+          wrap = !!wrap;
+          var rows = grid.data.rows.displayed();
+          var cols = grid.columns.displayed();
+          var rowIndex = rows.tryFirstIndexOf(selectedRow);
+          var colIndex = cols.indexOf(selectedColumn);
+          var newRowIndex = rowIndex + rowWise;
+          var newColIndex = colIndex + columnWise;
+          if (wrap && newColIndex < 0) {
+            newRowIndex -= 1;
+            newColIndex = cols.length - 1;
+          } else if (wrap && newColIndex >= cols.length) {
+            newRowIndex += 1;
+            newColIndex = 0;
+          }
+          newColIndex = Math.max(0, Math.min(cols.length - 1, newColIndex));
+          newRowIndex = Math.max(0, Math.min(rows.length - 1, newRowIndex));
+          select(rows.get(newRowIndex), cols[newColIndex]);
+        }
+        function select(row, column) {
+          if (hijacked)
+            hijacked.release();
+          selectedRow = row;
+          selectedColumn = column;
+          var cell = grid.data.lookupCell(row, column);
+          hijacked = cell.hijack('focused');
+          scrollIntoView(cell.element);
+          focusParking.focus();
+          focusParking.value = column.renderValue(ko.unwrap(row[column.property]));
+          focusParking.setSelectionRange(0, focusParking.value.length);
+        }
+        // TODO scroll containing view port if necessary
+        function scrollIntoView(element) {
+          var scrollerBounds = scroller.getBoundingClientRect();
+          var elementBounds = element.getBoundingClientRect();
+          var extra = 7;
+          var scrollX = Math.min(0, elementBounds.left - scrollerBounds.left - extra) || Math.max(0, elementBounds.right - scrollerBounds.right + extra + (scroller.offsetWidth - scroller.clientWidth));
+          var scrollY = Math.min(0, elementBounds.top - scrollerBounds.top - extra) || Math.max(0, elementBounds.bottom - scrollerBounds.bottom + extra);
+          scroller.scrollLeft += scrollX;
+          scroller.scrollTop += scrollY;
+        }
+      }
+    });
+    return koGrid.declareExtensionAlias('cellNavigation', extensionId);
+  }({}, knockout, ko_grid);
+  ko_grid_cell_navigation = function (main) {
+    return main;
+  }(ko_grid_cell_navigation_cell_navigation);
+  return ko_grid_cell_navigation;
+}(onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
 ko_grid_column_sizing = function (onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
   var ko_grid_column_sizing_column_sizing, ko_grid_column_sizing;
   ko_grid_column_sizing_column_sizing = function (module, koGrid) {
@@ -4515,8 +4742,8 @@ ko_grid_filtering = function (onefold_dom, indexed_list, stringifyable, onefold_
         var throttledRowPredicate = throttle ? rowPredicate.extend({ throttle: throttleAmout }) : rowPredicate;
         var applied = ko.observable(true);
         this['__applied'] = ko.pureComputed(function () {
-          applied(applied() || grid.data.rows.displayedSynchronized());
-          return applied() && !grid.data.view.dirty();
+          applied(applied() || grid.data.rows.displayedSynchronized() && !grid.data.view.dirty());
+          return applied();
         });
         grid.data.predicates.push(ko.pureComputed(function () {
           applied(false);
@@ -4801,7 +5028,7 @@ ko_grid_toolbar = function (onefold_dom, stringifyable, indexed_list, onefold_li
   }(ko_grid_toolbar_toolbar);
   return ko_grid_toolbar;
 }(onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
-ko_grid_virtualization = function (onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
+ko_grid_virtualization = function (onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
   var ko_grid_virtualization_virtualization, ko_grid_virtualization;
   ko_grid_virtualization_virtualization = function (module, ko, koGrid) {
     var extensionId = 'ko-grid-virtualization'.indexOf('/') < 0 ? 'ko-grid-virtualization' : 'ko-grid-virtualization'.substring(0, 'ko-grid-virtualization'.indexOf('/'));
@@ -4811,8 +5038,8 @@ ko_grid_virtualization = function (onefold_dom, stringifyable, indexed_list, one
         template.after('body').insert('<tbody class="ko-grid-virtualization-after-spacer"><tr data-bind="style: { height: extensions.virtualization.__afterHeight() + \'px\' }"><td></td></tr></tbody>');
       },
       Constructor: function VirtualizationExtension(bindingValue, config, grid) {
-        var beforeHeight = ko.observable();
-        var afterHeight = ko.observable();
+        var beforeHeight = ko.observable(0);
+        var afterHeight = ko.observable(0);
         this['__beforeHeight'] = beforeHeight;
         this['__afterHeight'] = afterHeight;
         var scroller, beforeSpacer, afterSpacer;
@@ -4820,32 +5047,29 @@ ko_grid_virtualization = function (onefold_dom, stringifyable, indexed_list, one
           scroller = grid.element.querySelector('.ko-grid-table-scroller');
           beforeSpacer = grid.element.querySelector('.ko-grid-virtualization-before-spacer');
           afterSpacer = grid.element.querySelector('.ko-grid-virtualization-after-spacer');
-          grid.data.view.filteredSize.subscribe(recomputeSpacerSizes);
           grid.layout.afterRelayout(recomputeLimit);
+          grid.data.view.filteredSize.subscribe(recomputeAfterSpacerSizes);
           scroller.addEventListener('scroll', recomputeOffset);
         });
         // TODO guesstimate a good row height
         var averageRowHeight = 25;
         function recomputeLimit() {
-          var limit = Math.ceil((scroller.clientHeight - 1) / averageRowHeight) + 1;
+          var limit = Math.ceil((scroller.clientHeight - 1) / averageRowHeight) + 2;
           grid.data.limit(limit);
-          recomputeSpacerSizes();
         }
         function recomputeOffset() {
-          // TODO the offset should be divisible by two (for alternating row styles)
-          var offset = Math.floor(grid.data.offset() + (scroller.scrollTop - beforeHeight()) / averageRowHeight);
+          var scrollTop = scroller.scrollTop;
+          var pixelDelta = scroller.getBoundingClientRect().top - beforeSpacer.getBoundingClientRect().bottom;
+          var rowDelta = Math.floor(pixelDelta / averageRowHeight);
+          var offset = Math.max(0, Math.min(grid.data.view.filteredSize() - grid.data.view.size() + 2, grid.data.offset() + rowDelta));
+          var offsetModulo = offset & 1;
+          offset -= offsetModulo;
           grid.data.offset(offset);
-          recomputeSpacerSizes();
+          beforeHeight(scrollTop - offsetModulo * averageRowHeight - scrollTop % averageRowHeight);
+          recomputeAfterSpacerSizes();
         }
-        function recomputeSpacerSizes() {
-          var scrolled = scroller.scrollTop;
-          var remaining = Math.max(0, (grid.data.view.filteredSize() - grid.data.offset() - grid.data.limit()) * averageRowHeight);
-          var viewed = scroller.clientHeight;
-          var beforeBounds = beforeSpacer.getBoundingClientRect();
-          var afterBounds = afterSpacer.getBoundingClientRect();
-          var contentHeight = afterBounds.top - beforeBounds.bottom;
-          beforeHeight(scrolled - scrolled % averageRowHeight);
-          afterHeight(Math.max(0, remaining + contentHeight - viewed));
+        function recomputeAfterSpacerSizes() {
+          afterHeight(Math.max(0, grid.data.view.filteredSize() - grid.data.offset() - grid.data.limit()) * averageRowHeight);
         }
       }
     });
@@ -4855,13 +5079,14 @@ ko_grid_virtualization = function (onefold_dom, stringifyable, indexed_list, one
     return main;
   }(ko_grid_virtualization_virtualization);
   return ko_grid_virtualization;
-}(onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
+}(onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
 
 ko_grid_bundle_bundle = {
   'dataSource': ko_data_source,
   'grid': ko_grid,
   'extensions': {
     'aggregate': ko_grid_aggregate,
+    'cellNavigation': ko_grid_cell_navigation,
     'columnResizing': ko_grid_column_resizing,
     'columnScaling': ko_grid_column_scaling,
     'columnSizing': ko_grid_column_sizing,

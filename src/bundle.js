@@ -6,6 +6,7 @@ define(function (require) {
         'grid': require('ko-grid'),
         'extensions': {
             'aggregate': require('ko-grid-aggregate'),
+            'cellNavigation': require('ko-grid-cell-navigation'),
             'columnResizing': require('ko-grid-column-resizing'),
             'columnScaling': require('ko-grid-column-scaling'),
             'columnSizing': require('ko-grid-column-sizing'),

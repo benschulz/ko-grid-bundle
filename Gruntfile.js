@@ -19,6 +19,7 @@ module.exports = function (grunt) {
         less: [
             'bower_components/ko-grid/dist/ko-grid.debug.css',
             'bower_components/ko-grid-aggregate/dist/ko-grid-aggregate.debug.css',
+            'bower_components/ko-grid-cell-navigation/dist/ko-grid-cell-navigation.debug.css',
             'bower_components/ko-grid-column-resizing/dist/ko-grid-column-resizing.debug.css',
             'bower_components/ko-grid-export/dist/ko-grid-export.debug.css',
             'bower_components/ko-grid-filtering/dist/ko-grid-filtering.debug.css',

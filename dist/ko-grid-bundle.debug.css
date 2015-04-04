@@ -217,6 +217,12 @@
   content: "Max\0020";
 }
 
+.focused.ko-grid-cell {
+  outline: 2.5px solid black;
+  outline-offset: -1px;
+  background-color: #c4ddf3;
+}
+
 .ko-grid-column-header,
 .ko-grid-column-group-header {
   position: relative;
