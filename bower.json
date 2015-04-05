@@ -23,6 +23,7 @@
     "ko-grid-column-scaling": "benschulz/ko-grid-column-scaling",
     "ko-grid-column-sizing": "benschulz/ko-grid-column-sizing",
     "ko-grid-column-width-persistence": "benschulz/ko-grid-column-width-persistence",
+    "ko-grid-editing": "benschulz/ko-grid-editing",
     "ko-grid-export": "benschulz/ko-grid-export",
     "ko-grid-filtering": "benschulz/ko-grid-filtering",
     "ko-grid-full-screen": "benschulz/ko-grid-full-screen",

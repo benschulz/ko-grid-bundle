@@ -18,7 +18,7 @@
  * Copyright (c) 2015, Ben Schulz
  * License: BSD 3-clause (http://opensource.org/licenses/BSD-3-Clause)
  */
-var onefold_js, onefold_lists, indexed_list, stringifyable, ko_data_source, onefold_dom, ko_indexed_repeat, ko_grid, ko_grid_aggregate, ko_grid_cell_navigation, ko_grid_column_sizing, ko_grid_column_resizing, ko_grid_view_modes, ko_grid_view_state_storage, ko_grid_column_scaling, ko_grid_column_width_persistence, ko_grid_export, ko_grid_filtering, ko_grid_full_screen, ko_grid_links, ko_grid_resize_detection, ko_grid_sorting, ko_grid_toolbar, ko_grid_virtualization, ko_grid_bundle_bundle, ko_grid_bundle;
+var onefold_js, onefold_lists, indexed_list, stringifyable, ko_data_source, onefold_dom, ko_indexed_repeat, ko_grid, ko_grid_aggregate, ko_grid_cell_navigation, ko_grid_column_sizing, ko_grid_column_resizing, ko_grid_view_modes, ko_grid_view_state_storage, ko_grid_column_scaling, ko_grid_column_width_persistence, ko_grid_editing, ko_grid_export, ko_grid_filtering, ko_grid_full_screen, ko_grid_links, ko_grid_resize_detection, ko_grid_sorting, ko_grid_toolbar, ko_grid_virtualization, ko_grid_bundle_bundle, ko_grid_bundle;
 onefold_js = function () {
   var onefold_js_objects, onefold_js_arrays, onefold_js_strings, onefold_js_internal, onefold_js;
   onefold_js_objects = function () {
@@ -2642,7 +2642,164 @@ ko_indexed_repeat = function (knockout) {
   return ko_indexed_repeat;
 }(knockout);
 ko_grid = function (onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_data_source, ko_indexed_repeat, knockout) {
-  var ko_grid_template, text, text_ko_grid_columnshtmltemplate, ko_grid_columns, ko_grid_application_event_dispatcher, text_ko_grid_datahtmltemplate, ko_grid_data, text_ko_grid_headershtmltemplate, ko_grid_headers, ko_grid_layout, ko_grid_core, ko_grid_extensions, text_ko_grid_gridhtmltemplate, ko_grid_binding, ko_grid;
+  var ko_grid_application_event_dispatcher, ko_grid_template, text, text_ko_grid_columnshtmltemplate, ko_grid_columns, text_ko_grid_datahtmltemplate, ko_grid_data, text_ko_grid_headershtmltemplate, ko_grid_headers, ko_grid_layout, ko_grid_core, ko_grid_extensions, text_ko_grid_gridhtmltemplate, ko_grid_binding, ko_grid;
+  ko_grid_application_event_dispatcher = function (js, dom) {
+    /** @constructor */
+    function ApplicationEvent(originalEvent) {
+      var commonProperties = [
+        'altKey',
+        'bubbles',
+        'cancelable',
+        'ctrlKey',
+        'currentTarget',
+        'detail',
+        'eventPhase',
+        'metaKey',
+        'relatedTarget',
+        'shiftKey',
+        'target',
+        'timeStamp',
+        'type',
+        'view',
+        'which'
+      ];
+      var typeProperties = {
+        'key': [
+          'char',
+          'charCode',
+          'key',
+          'keyCode'
+        ],
+        'mouse': [
+          'button',
+          'buttons',
+          'clientX',
+          'clientY',
+          'offsetX',
+          'offsetY',
+          'pageX',
+          'pageY',
+          'screenX',
+          'screenY',
+          'toElement'
+        ]
+      };
+      var properties = commonProperties.concat(typeProperties[originalEvent.type.substr(0, 3)] || []).concat(typeProperties[originalEvent.type.substr(0, 5)] || []);
+      this.__originalEvent = originalEvent;
+      this.__applicationDefaultPrevented = originalEvent.defaultPrevented;
+      properties.forEach(function (p) {
+        return Object.defineProperty(this, p, {
+          get: function () {
+            return originalEvent[p];
+          }
+        });
+      }.bind(this));  //function ApplicationEvent() {
+                      //    var applicationDefaultPrevented = originalEvent.defaultPrevented;
+                      //
+                      //    js.objects.extend(this, {
+                      //        preventDefault: function () {
+                      //            applicationDefaultPrevented = true;
+                      //            return originalEvent.preventDefault();
+                      //        },
+                      //        preventApplicationButAllowBrowserDefault: function () {
+                      //            applicationDefaultPrevented = true;
+                      //        },
+                      //        get defaultPrevented() {
+                      //            return applicationDefaultPrevented;
+                      //        }
+                      //    });
+                      //}
+                      //
+                      //// While this isn't great performance-wise, copying properties manually
+                      //// probably would not be either. Unless one wrote a special constructor
+                      //// per event type, perhaps.
+                      //ApplicationEvent.prototype = originalEvent;
+                      //
+                      //return new ApplicationEvent();
+    }
+    ApplicationEvent.prototype = {
+      preventDefault: function () {
+        this.__applicationDefaultPrevented = true;
+        return this.__originalEvent.preventDefault();
+      },
+      preventApplicationButAllowBrowserDefault: function () {
+        this.__applicationDefaultPrevented = true;
+      },
+      get defaultPrevented() {
+        return this.__applicationDefaultPrevented;
+      }
+    };
+    ApplicationEvent.prototype = js.objects.extend({}, {
+      get 'defaultPrevented'() {
+        return this.defaultPrevented;
+      },
+      'preventDefault': ApplicationEvent.prototype.preventDefault,
+      'preventApplicationButAllowBrowserDefault': ApplicationEvent.prototype.preventApplicationButAllowBrowserDefault
+    }, ApplicationEvent.prototype);
+    /** @constructor */
+    function ApplicationEventHandler(handler, selector) {
+      this.handler = handler;
+      this.selector = selector;
+    }
+    /** @constructor */
+    function ApplicationEventDispatcher(argumentsSupplier) {
+      argumentsSupplier = argumentsSupplier || function (event) {
+        return [event];
+      };
+      var handlers = [];
+      this.registerHandler = function (selectorOrHandler, handler) {
+        var selector = arguments.length > 1 ? selectorOrHandler : undefined;
+        handler = arguments.length > 1 ? handler : selectorOrHandler;
+        handlers.push(new ApplicationEventHandler(handler, selector));
+        return {
+          dispose: function () {
+            if (handler) {
+              handlers.splice(handlers.indexOf(handler), 1);
+              handler = null;
+            }
+          }
+        };
+      };
+      this.relativeToClosest = function (ancestorSelector) {
+        return {
+          dispatch: function (event) {
+            var closestAncestor = dom.element.closest(event.target, ancestorSelector);
+            if (closestAncestor) {
+              var applicationEvent = new ApplicationEvent(event);
+              dispatch(closestAncestor, applicationEvent, argumentsSupplier(applicationEvent, closestAncestor));
+            }
+          }
+        };
+      };
+      function dispatch(root, event, handlerArguments) {
+        function findDeepestMatch(selector) {
+          var matches = Array.prototype.slice.call(root.querySelectorAll(selector)).filter(function (match) {
+            return dom.isOrContains(match, event.target);
+          });
+          return matches.length ? matches[matches.length - 1] : undefined;
+        }
+        var determineDepth = dom.determineDepth.bind(null, root);
+        var handlersAndTheirMatches = handlers.map(function (candidate) {
+          var match = candidate.selector ? findDeepestMatch(candidate.selector) : root;
+          return {
+            handler: candidate.handler,
+            match: match,
+            depth: match ? determineDepth(match) : -1
+          };
+        });
+        var applicableHandlers = handlersAndTheirMatches.filter(function (candidate) {
+          return !!candidate.match;
+        });
+        js.arrays.stableSort(applicableHandlers, function (a, b) {
+          return b.depth - a.depth;
+        });
+        applicableHandlers.forEach(function (h) {
+          h.handler.apply(root, handlerArguments);
+        });
+      }
+    }
+    return ApplicationEventDispatcher;
+  }(onefold_js, onefold_dom);
   ko_grid_template = function () {
     var PLACEHOLDER_KIND_REGULAR = 1;
     var PLACEHOLDER_KIND_BEFORE_AFTER = 2;
@@ -2925,105 +3082,36 @@ ko_grid = function (onefold_dom, indexed_list, stringifyable, onefold_lists, one
         this.renderValue = override(this.renderValue);
       }.bind(this);
       this.overrideValueBinding = function (override) {
-        var overridden = this._overrideValueBinding(override);
+        var overridden = this._overrideValueBinding(override, {
+          init: this._initCell,
+          update: this._updateCell
+        });
         if (!overridden || !overridden.init || !overridden.update)
           throw new Error('The cell value binding must define an `init` as well as an `update` method.');
         this._initCell = overridden.init;
         this._updateCell = overridden.update;
       }.bind(this);
-      this._overrideValueBinding = function (override) {
+      this._overrideValueBinding = function (override, current) {
         var overridden = override(js.objects.extend({
-          init: this._initCell,
-          update: this._updateCell
+          init: current.init,
+          update: current.update
         }, {
-          'init': this._initCell,
-          'update': this._updateCell
+          'init': current.init,
+          'update': current.update
         }));
         return {
           init: overridden.init || overridden['init'],
           update: overridden.update || overridden['update']
         };
-      }.bind(this);
+      };
       this['overrideValueRendering'] = this.overrideValueRendering;
       this['overrideValueBinding'] = this.overrideValueBinding;
     }
     return columns;
   }(knockout, onefold_js, text_ko_grid_columnshtmltemplate);
-  ko_grid_application_event_dispatcher = function (js, dom) {
-    /** @constructor */
-    function ApplicationEvent(originalEvent) {
-      var applicationDefaultPrevented = originalEvent.defaultPrevented;
-      js.objects.extend(this, originalEvent, {
-        preventDefault: function () {
-          applicationDefaultPrevented = true;
-          return originalEvent.preventDefault();
-        },
-        preventApplicationButAllowBrowserDefault: function () {
-          applicationDefaultPrevented = true;
-        },
-        get defaultPrevented() {
-          return applicationDefaultPrevented;
-        }
-      });
-    }
-    /** @constructor */
-    function ApplicationEventHandler(handler, selector) {
-      this.handler = handler;
-      this.selector = selector;
-    }
-    /** @constructor */
-    function ApplicationEventDispatcher(argumentsSupplier) {
-      argumentsSupplier = argumentsSupplier || function (event) {
-        return [event];
-      };
-      var handlers = [];
-      this.registerHandler = function (selectorOrHandler, handler) {
-        var selector = arguments.length > 1 ? selectorOrHandler : undefined;
-        handler = arguments.length > 1 ? handler : selectorOrHandler;
-        handlers.push(new ApplicationEventHandler(handler, selector));
-      };
-      this.relativeToClosest = function (ancestorSelector) {
-        return {
-          dispatch: function (event) {
-            var closestAncestor = dom.element.closest(event.target, ancestorSelector);
-            if (closestAncestor) {
-              var applicationEvent = new ApplicationEvent(event);
-              dispatch(closestAncestor, applicationEvent, argumentsSupplier(applicationEvent, closestAncestor));
-            }
-          }
-        };
-      };
-      function dispatch(root, event, handlerArguments) {
-        function findDeepestMatch(selector) {
-          var matches = Array.prototype.slice.call(root.querySelectorAll(selector)).filter(function (match) {
-            return dom.isOrContains(match, event.target);
-          });
-          return matches.length ? matches[matches.length - 1] : undefined;
-        }
-        var determineDepth = dom.determineDepth.bind(null, root);
-        var handlersAndTheirMatches = handlers.map(function (candidate) {
-          var match = candidate.selector ? findDeepestMatch(candidate.selector) : root;
-          return {
-            handler: candidate.handler,
-            match: match,
-            depth: match ? determineDepth(match) : -1
-          };
-        });
-        var applicableHandlers = handlersAndTheirMatches.filter(function (candidate) {
-          return !!candidate.match;
-        });
-        js.arrays.stableSort(applicableHandlers, function (a, b) {
-          return b.depth - a.depth;
-        });
-        applicableHandlers.forEach(function (h) {
-          h.handler.apply(root, handlerArguments);
-        });
-      }
-    }
-    return ApplicationEventDispatcher;
-  }(onefold_js, onefold_dom);
   text_ko_grid_datahtmltemplate = '<tbody class="ko-grid-tbody" data-bind="_gridWidth: columns.combinedWidth() + \'px\'">\n    <tr class="ko-grid-tr ko-grid-row"\n        data-bind="indexedRepeat: {\n            forEach: data.rows.displayed,\n            indexedBy: function(r) { return grid.data.observableValueSelector(ko.unwrap(r[grid.primaryKey])); },\n            as: \'row\',\n            at: \'rowIndex\',\n            beforeElementRecycling: data.rows.__handleElementRecycling,\n            afterElementRecycled: data.rows.__handleElementRecycled,\n            allowDeviation: true,\n            onDeviation: data.rows.__handleDisplayedRowsDeviate,\n            onSynchronization: data.rows.__handleDisplayedRowsSynchronized }"\n        data-repeat-bind="__gridRow: { classify: grid.data.rows.__classify, row: row, index: rowIndex }">\n\n        <td data-bind="indexedRepeat: { forEach: columns.displayed, indexedBy: \'id\', as: \'column\', allowElementRecycling: false }"\n            data-repeat-bind="__gridCell: { row: row, column: column }"></td>\n    </tr>\n</tbody>';
   ko_grid_data = function (ko, js, stringifyable, ApplicationEventDispatcher, dataTemplate) {
+    var TEXT_NODE = window.Node.TEXT_NODE;
     var ELEMENT_NODE = window.Node.ELEMENT_NODE;
     var HIJACKED_KEY = '__@__hijacked';
     var document = window.document;
@@ -3190,25 +3278,35 @@ ko_grid = function (onefold_dom, indexed_list, stringifyable, onefold_lists, one
         }
         throw new Error('Column `' + n + '` does not exist.');
       };
-      var hijacks = [];
-      this.rows['__handleElementRecycling'] = function (element) {
-        Array.prototype.slice.call(element.querySelectorAll('.ko-grid-cell')).forEach(function (c) {
-          return c[HIJACKED_KEY] = null;
+      var hijackCount = 0;
+      var hijacks = {};
+      this.rows['__handleElementRecycling'] = function (element, bindingContext) {
+        withHijacksOf(element, bindingContext, function (cell, row, column) {
+          cell[HIJACKED_KEY] = null;
+          initCellElement(cell, row, column);
         });
       };
       this.rows['__handleElementRecycled'] = function (element, bindingContext) {
+        withHijacksOf(element, bindingContext, function (cell, row, column, hijack) {
+          hijack.element = cell;
+          hijack.row = row;
+          cell[HIJACKED_KEY] = hijack;
+          initCellElement(cell, row, column);
+          // TODO This update might have dependencies that won't get tracked.. (same below)
+          updateCellElement(cell, row, column);
+        });
+      };
+      var withHijacksOf = function (rowElement, bindingContext, action) {
+        if (!hijackCount)
+          return;
         var row = bindingContext['row']();
         var rowId = this.observableValueSelector(ko.unwrap(row[grid.primaryKey]));
         if (js.objects.hasOwn(hijacks, rowId)) {
-          hijacks[rowId].forEach(function (h) {
-            var column = h.column;
+          hijacks[rowId].forEach(function (hijack) {
+            var column = hijack.column;
             var columnIndex = grid.columns.displayed().indexOf(column);
-            var cell = element.children[columnIndex];
-            h.element = cell;
-            cell[HIJACKED_KEY] = h;
-            if (h.init)
-              initCellElement(cell, row, column);
-            updateCellElement(cell, row, column);
+            var cell = rowElement.children[columnIndex];
+            action(cell, row, column, hijack);
           });
         }
       }.bind(this);
@@ -3217,35 +3315,40 @@ ko_grid = function (onefold_dom, indexed_list, stringifyable, onefold_lists, one
         var rowIndex = this.rows.displayed().tryFirstIndexOf(row);
         var columnIndex = grid.columns.displayed().indexOf(column);
         var element = nthCellOfRow(nthRowElement(rowIndex), columnIndex);
-        function hijack(classes, override) {
+        function hijack(override) {
           if (element[HIJACKED_KEY])
             throw new Error('Illegal state: This cell is already hijacked.');
           var binding = column._overrideValueBinding(override || function (b) {
             return b;
+          }, {
+            init: column._initCell || defaultInit,
+            update: column._updateCell || defaultUpdate
           });
           var hijacked = element[HIJACKED_KEY] = {
             element: element,
+            row: row,
             column: column,
-            classes: classes,
             init: binding.init,
             update: binding.update
           };
           var rowHijacks = hijacks[rowId] = hijacks[rowId] || [];
           rowHijacks.push(hijacked);
-          if (hijacked.init)
-            initCellElement(element, row, column);
+          ++hijackCount;
+          initCellElement(element, row, column);
           updateCellElement(element, row, column);
           function release() {
             if (rowHijacks.length === 1)
               delete hijacks[rowId];
             else
               rowHijacks.splice(rowHijacks.indexOf(hijacked), 1);
+            --hijackCount;
             if (hijacked.element[HIJACKED_KEY] !== hijacked)
               return;
             // the element was recycled for another entry
             hijacked.element[HIJACKED_KEY] = null;
-            initCellElement(hijacked.element, row, column);
-            updateCellElement(hijacked.element, row, column);
+            initCellElement(hijacked.element, hijacked.row, hijacked.column);
+            // TODO This update might have dependencies that won't get tracked.. (same above)
+            updateCellElement(hijacked.element, hijacked.row, hijacked.column);
           }
           return js.objects.extend({
             release: release,
@@ -3306,26 +3409,26 @@ ko_grid = function (onefold_dom, indexed_list, stringifyable, onefold_lists, one
       var hijacked = element[HIJACKED_KEY];
       while (element.firstChild)
         ko.removeNode(element.firstChild);
-      if (hijacked && hijacked.init)
-        hijacked.init(element, row, column);
-      if (column._initCell)
-        column._initCell(element, row, column);
-      else
-        element.appendChild(document.createTextNode(''));
+      var init = hijacked && hijacked.init || column._initCell || defaultInit;
+      init(element, row, column);
     }
     function updateCellElement(element, row, column) {
       var cell = row[column.property];
-      var cellValue = cell && ko.unwrap(cell);
       var hijacked = element[HIJACKED_KEY];
       // TODO since there may be thousands of cells we want to keep the dependency count at two (row+cell) => peek => need separate change handler for cellClasses
       var columnClasses = column.cellClasses.peek().join(' ');
-      element.className = 'ko-grid-td ko-grid-cell ' + columnClasses + (hijacked ? ' ' + hijacked.classes : '');
-      if (hijacked && hijacked.update)
-        hijacked.update(element, cell, row, column);
-      if (column._initCell)
-        column._updateCell(element, cell, row, column);
-      else
-        element.lastChild.nodeValue = column.renderValue(cellValue);
+      element.className = 'ko-grid-td ko-grid-cell ' + columnClasses;
+      var update = hijacked && hijacked.update || column._updateCell || defaultUpdate;
+      update(element, cell, row, column);
+    }
+    function defaultInit(element) {
+      element.insertBefore(document.createTextNode(''), element.firstChild);
+    }
+    function defaultUpdate(element, cell, row, column) {
+      var child = element.firstChild;
+      while (child.nodeType !== TEXT_NODE)
+        child = child.nextSibling;
+      child.nodeValue = column.renderValue(ko.unwrap(cell));
     }
     return data;
   }(knockout, onefold_js, stringifyable, ko_grid_application_event_dispatcher, text_ko_grid_datahtmltemplate);
@@ -3798,7 +3901,7 @@ ko_grid = function (onefold_dom, indexed_list, stringifyable, onefold_lists, one
     return extensions;
   }(knockout, onefold_js);
   text_ko_grid_gridhtmltemplate = '<div class="ko-grid">\n    <!--before:grid-->\n    <div class="ko-grid-table-container">\n        <!--before:table-->\n        <div class="ko-grid-table-scroller-padding">\n            <div class="ko-grid-table-scroller">\n                <table class="ko-grid-table" data-bind="_gridWidth: columns.combinedWidth() + \'px\'">\n                    <!--columns-->\n                    <!--head-->\n                    <tfoot class="ko-grid-tfoot" data-bind="_gridWidth: columns.combinedWidth() + \'px\'"><!--tfoot--></tfoot>\n                    <!--body-->\n                </table>\n            </div>\n        </div>\n        <!--after:table-->\n    </div>\n    <!--after:grid-->\n</div>';
-  ko_grid_binding = function (req, ko, js) {
+  ko_grid_binding = function (req, ko, js, ApplicationEventDispatcher) {
     var require = req;
     var document = window.document;
     var koGrid = ko.bindingHandlers['grid'] = ko.bindingHandlers['grid'] || {};
@@ -3845,6 +3948,13 @@ ko_grid = function (onefold_dom, indexed_list, stringifyable, onefold_lists, one
           callback();
         };
       }.bind(this);
+      var onKeyDownDispatcher = new ApplicationEventDispatcher();
+      this.onKeyDown = onKeyDownDispatcher.registerHandler.bind(onKeyDownDispatcher);
+      this['onKeyDown '] = this.onKeyDown;
+      rootElement.addEventListener('keydown', function (e) {
+        onKeyDownDispatcher.relativeToClosest('.ko-grid').dispatch(e);
+        return !e.defaultPrevented;
+      });
     }
     ko.bindingHandlers['grid']['init'] = function (element, valueAccessor, allBindingsAccessor, viewModel, bindingContext) {
       var bindingValue = valueAccessor();
@@ -3873,8 +3983,8 @@ ko_grid = function (onefold_dom, indexed_list, stringifyable, onefold_lists, one
         var gridExtensions = grid['extensions'] = grid.extensions = {};
         extensionLoadOrder.forEach(function (extensionName) {
           var extension = koGrid.lookUpExtension(extensionName);
-          var extensionConfig = extension.extractConfiguration(extensionConfigs, configName);
           var extensionBindingValue = extension.tryExtractBindingValue(extensionBindingValues) || {};
+          var extensionConfig = apply(extension.extractConfiguration(extensionConfigs, configName), extensionBindingValue, bindingValue);
           if (extensionConfig['enabled'] === false && extensionBindingValue['enabled'] !== true || extensionBindingValue['enabled'] === false)
             return;
           extension.dependencies.forEach(function (dependency) {
@@ -3905,6 +4015,13 @@ ko_grid = function (onefold_dom, indexed_list, stringifyable, onefold_lists, one
         grid.__postApplyBindings();
         grid.__postApplyBindings = null;
       });
+      /**
+       * @param {...*} config
+       * @return {?}
+       */
+      function apply(config) {
+        return typeof config === 'function' ? config.apply(undefined, Array.prototype.slice.call(arguments, 1)) : config;
+      }
       return { 'controlsDescendantBindings': true };
     };
     ko.bindingHandlers['grid']['update'] = function () {
@@ -3962,7 +4079,7 @@ ko_grid = function (onefold_dom, indexed_list, stringifyable, onefold_lists, one
       }
     };
     return koGrid;
-  }(req, knockout, onefold_js);
+  }(req, knockout, onefold_js, ko_grid_application_event_dispatcher);
   ko_grid = function (main) {
     return main;
   }(ko_grid_binding);
@@ -4111,16 +4228,21 @@ ko_grid_cell_navigation = function (onefold_dom, indexed_list, stringifyable, on
         template.before('table').insert('<textarea class="ko-grid-focus-parking" tabIndex="-1" style="position: absolute; z-index: 10; overflow: hidden; box-sizing: border-box; width: 1em; height: 1em; top: -3em; left: -3em; resize: none; border: none;"></textarea>');
       },
       Constructor: function CellNavigationExtension(bindingValue, config, grid) {
+        var onCellFocusedHandlers = [];
+        this.onCellFocused = function (handler) {
+          return onCellFocusedHandlers.push(handler);
+        };
+        this['onCellFocused'] = this.onCellFocused;
         var scroller = null, focusParking = null, selectedRow = null, selectedColumn = null, hijacked = null;
         grid.postApplyBindings(function () {
           scroller = grid.element.querySelector('.ko-grid-table-scroller');
           focusParking = grid.element.querySelector('.ko-grid-focus-parking');
         });
         grid.data.onCellClick(function (e, cellValue, row, column) {
-          return select(row, column);
+          return focus(row, column);
         });
-        grid.rootElement.addEventListener('keydown', function (e) {
-          if (KEY_CODES.indexOf(e.keyCode) < 0)
+        grid.onKeyDown(function (e) {
+          if (e.defaultPrevented || KEY_CODES.indexOf(e.keyCode) < 0)
             return;
           e.preventDefault();
           var multiplier = e.shiftKey ? -1 : 1;
@@ -4161,19 +4283,36 @@ ko_grid_cell_navigation = function (onefold_dom, indexed_list, stringifyable, on
           }
           newColIndex = Math.max(0, Math.min(cols.length - 1, newColIndex));
           newRowIndex = Math.max(0, Math.min(rows.length - 1, newRowIndex));
-          select(rows.get(newRowIndex), cols[newColIndex]);
+          focus(rows.get(newRowIndex), cols[newColIndex]);
         }
-        function select(row, column) {
+        function focus(row, column) {
+          if (row === selectedRow && column === selectedColumn)
+            return;
           if (hijacked)
             hijacked.release();
-          selectedRow = row;
-          selectedColumn = column;
           var cell = grid.data.lookupCell(row, column);
-          hijacked = cell.hijack('focused');
-          scrollIntoView(cell.element);
           focusParking.focus();
           focusParking.value = column.renderValue(ko.unwrap(row[column.property]));
           focusParking.setSelectionRange(0, focusParking.value.length);
+          hijacked = cell.hijack(function (b) {
+            return onCellFocusedHandlers.reduce(function (a, h) {
+              return h(row, column, a) || a;
+            }, {
+              init: function (element, row, column) {
+                var $__arguments = arguments;
+                selectedRow = row;
+                selectedColumn = column;
+                b.init.apply(this, $__arguments);
+                element.classList.add('focused');
+              },
+              update: function (element) {
+                var $__arguments = arguments;
+                b.update.apply(this, $__arguments);
+                element.classList.add('focused');
+              }
+            });
+          });
+          scrollIntoView(cell.element);
         }
         // TODO scroll containing view port if necessary
         function scrollIntoView(element) {
@@ -4619,6 +4758,183 @@ ko_grid_column_width_persistence = function (onefold_dom, stringifyable, indexed
   }(ko_grid_column_width_persistence_column_width_persistence);
   return ko_grid_column_width_persistence;
 }(onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid_column_sizing, ko_grid_view_state_storage, ko_data_source, ko_indexed_repeat, ko_grid_view_modes, knockout, ko_grid);
+ko_grid_editing = function (onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid_cell_navigation, ko_data_source, ko_indexed_repeat, ko_grid, knockout) {
+  var ko_grid_editing_editing, ko_grid_editing;
+  var cellNavigation = 'ko-grid-cell-navigation';
+  ko_grid_editing_editing = function (module, ko, koGrid) {
+    var extensionId = 'ko-grid-editing'.indexOf('/') < 0 ? 'ko-grid-editing' : 'ko-grid-editing'.substring(0, 'ko-grid-editing'.indexOf('/'));
+    var HIDDEN_TOP = '0', HIDDEN_LEFT = '-8px', HIDDEN_RIGHT = '', HIDDEN_BOTTOM = '0', HIDDEN_WIDTH = '7px', VISIBLE_TOP = '0', VISIBLE_LEFT = '0', VISIBLE_RIGHT = '0', VISIBLE_BOTTOM = '0', VISIBLE_WIDTH = '';
+    var KEY_CODE_TAB = 9, KEY_CODE_ENTER = 13, KEY_CODE_SHIFT = 16, KEY_CODE_ESCAPE = 27, KEY_CODE_ARROW_LEFT = 37, KEY_CODE_ARROW_DOWN = 40, KEY_CODE_F1 = 112, KEY_CODE_F2 = 113, KEY_CODE_F3 = 114, KEY_CODE_F12 = 123;
+    var ACTIVATED_START_INDEX = 4, PASS_THROUGH_KEY_RANGES = [
+        [
+          KEY_CODE_ARROW_LEFT,
+          KEY_CODE_ARROW_DOWN
+        ],
+        [
+          KEY_CODE_TAB,
+          KEY_CODE_TAB
+        ],
+        [
+          KEY_CODE_ENTER,
+          KEY_CODE_ENTER
+        ],
+        [
+          KEY_CODE_ESCAPE,
+          KEY_CODE_ESCAPE
+        ],
+        [
+          KEY_CODE_SHIFT,
+          KEY_CODE_SHIFT
+        ],
+        [
+          KEY_CODE_F1,
+          KEY_CODE_F1
+        ],
+        [
+          KEY_CODE_F3,
+          KEY_CODE_F12
+        ],
+        [
+          KEY_CODE_F2,
+          KEY_CODE_F2
+        ]
+      ], PRE_ACTIVATION_END_INDEX = PASS_THROUGH_KEY_RANGES.length - 1;
+    koGrid.defineExtension(extensionId, {
+      dependencies: [cellNavigation],
+      Constructor: function EditingExtension(bindingValue, config, grid) {
+        var createEditor = bindingValue['createEditor'] || config['createEditor'] || function () {
+            return null;
+          }, saveChange = bindingValue['saveChange'] || config['saveChange'] || function () {
+            return window.console.warn('No `saveChange` strategy provided.');
+          };
+        var editingRow = null, editingColumn = null, editorContainer = null, editor = null, activated = false, keyDownSubscription = {
+            dispose: function () {
+            }
+          };
+        grid.data.onCellDoubleClick(function () {
+          if (editor) {
+            activate();
+            editor.activate();
+          }
+        });
+        grid.extensions[cellNavigation].onCellFocused(function (row, column, binding) {
+          keyDownSubscription.dispose();
+          editorContainer = window.document.createElement('div');
+          editorContainer.style.position = 'absolute';
+          editorContainer.style.top = HIDDEN_TOP;
+          editorContainer.style.left = HIDDEN_LEFT;
+          editorContainer.style.right = HIDDEN_RIGHT;
+          editorContainer.style.bottom = HIDDEN_BOTTOM;
+          editorContainer.style.width = HIDDEN_WIDTH;
+          editorContainer.style.overflow = 'hidden';
+          var rawEditor = createEditor(row, column);
+          editor = new EditorWrapper(rawEditor);
+          var editorElement = editor.element;
+          editorContainer.appendChild(editorElement);
+          editorElement.classList.add('ko-grid-editor');
+          editorElement.style.boxSizing = 'border-box';
+          editorElement.style.width = '100%';
+          editorElement.style.height = '100%';
+          activated = false;
+          keyDownSubscription = grid.onKeyDown('.ko-grid-editor', function (e) {
+            var keyCode = e.keyCode;
+            if (isPassThroughKeyCode(keyCode))
+              return;
+            else if (e.keyCode === KEY_CODE_ESCAPE) {
+              e.preventDefault();
+              reset();
+              deactivate();
+            } else if (!e.ctrlKey && keyCode === KEY_CODE_ENTER || keyCode === KEY_CODE_TAB)
+              return save();
+            else if (!activated && !e.ctrlKey && !e.altKey)
+              activate();
+            e.preventApplicationButAllowBrowserDefault();
+          });
+          function isPassThroughKeyCode(keyCode) {
+            var startIndex = activated ? ACTIVATED_START_INDEX : 0, endIndex = activated ? PASS_THROUGH_KEY_RANGES.length : PRE_ACTIVATION_END_INDEX;
+            for (var i = startIndex, l = endIndex; i < l; ++i) {
+              var RANGE = PASS_THROUGH_KEY_RANGES[i];
+              if (RANGE[0] <= keyCode && RANGE[1] >= keyCode) {
+                return true;
+              }
+            }
+            return false;
+          }
+          return {
+            init: function (element, row, column) {
+              var $__arguments = arguments;
+              editingRow = row;
+              editingColumn = column;
+              binding.init.apply(this, $__arguments);
+              element.appendChild(editorContainer);
+              if (activated)
+                editor.focus();
+              else
+                editor.activate();
+            },
+            update: binding.update
+          };
+        });
+        function activate() {
+          activated = true;
+          editorContainer.style.top = VISIBLE_TOP;
+          editorContainer.style.left = VISIBLE_LEFT;
+          editorContainer.style.right = VISIBLE_RIGHT;
+          editorContainer.style.bottom = VISIBLE_BOTTOM;
+          editorContainer.style.width = VISIBLE_WIDTH;
+        }
+        function deactivate() {
+          activated = false;
+          editorContainer.style.top = HIDDEN_TOP;
+          editorContainer.style.left = HIDDEN_LEFT;
+          editorContainer.style.right = HIDDEN_RIGHT;
+          editorContainer.style.bottom = HIDDEN_BOTTOM;
+          editorContainer.style.width = HIDDEN_WIDTH;
+          editor.activate();
+        }
+        function reset() {
+          editor.reset();
+        }
+        function save() {
+          if (editor.valueChanged)
+            saveChange(editingRow, editingColumn, editor.value);
+        }
+      }
+    });
+    /** @constructor */
+    function EditorWrapper(editor) {
+      this.__editor = editor;
+    }
+    EditorWrapper.prototype = {
+      get element() {
+        return this.__editor['element'];
+      },
+      get value() {
+        return this.__editor['value'];
+      },
+      set value(newValue) {
+        this.__editor['value'] = newValue;
+      },
+      get valueChanged() {
+        return this.__editor['valueChanged'];
+      },
+      activate: function () {
+        this.__editor['activate']();
+      },
+      focus: function () {
+        this.__editor['focus']();
+      },
+      reset: function () {
+        this.__editor['reset']();
+      }
+    };
+    return koGrid.declareExtensionAlias(['editing'], extensionId);
+  }({}, knockout, ko_grid);
+  ko_grid_editing = function (main) {
+    return main;
+  }(ko_grid_editing_editing);
+  return ko_grid_editing;
+}(onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid_cell_navigation, ko_data_source, ko_indexed_repeat, ko_grid, knockout);
 ko_grid_export = function (onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
   var ko_grid_export_export, ko_grid_export;
   var toolbar = 'ko-grid-toolbar';
@@ -5091,6 +5407,7 @@ ko_grid_bundle_bundle = {
     'columnScaling': ko_grid_column_scaling,
     'columnSizing': ko_grid_column_sizing,
     'columnWidthPersistence': ko_grid_column_width_persistence,
+    'editing': ko_grid_editing,
     'export': ko_grid_export,
     'filtering': ko_grid_filtering,
     'fullScreen': ko_grid_full_screen,

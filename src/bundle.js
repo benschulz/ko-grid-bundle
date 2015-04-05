@@ -11,6 +11,7 @@ define(function (require) {
             'columnScaling': require('ko-grid-column-scaling'),
             'columnSizing': require('ko-grid-column-sizing'),
             'columnWidthPersistence': require('ko-grid-column-width-persistence'),
+            'editing': require('ko-grid-editing'),
             'export': require('ko-grid-export'),
             'filtering': require('ko-grid-filtering'),
             'fullScreen': require('ko-grid-full-screen'),

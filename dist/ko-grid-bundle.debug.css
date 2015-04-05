@@ -218,8 +218,9 @@
 }
 
 .focused.ko-grid-cell {
-  outline: 2.5px solid black;
-  outline-offset: -1px;
+  position: relative;
+  outline: 2px solid black;
+  overflow: hidden;
   background-color: #c4ddf3;
 }
 
@@ -254,6 +255,12 @@
   right: 0;
   bottom: 0;
   cursor: col-resize !important;
+}
+
+input.ko-grid-editor {
+  border: none;
+  padding: 0 5px;
+  text-align: inherit;
 }
 
 .ko-grid-excel-export {
