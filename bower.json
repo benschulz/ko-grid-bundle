@@ -29,6 +29,7 @@
     "ko-grid-full-screen": "benschulz/ko-grid-full-screen",
     "ko-grid-links": "benschulz/ko-grid-links",
     "ko-grid-resize-detection": "benschulz/ko-grid-resize-detection",
+    "ko-grid-selection": "benschulz/ko-grid-selection",
     "ko-grid-sorting": "benschulz/ko-grid-sorting",
     "ko-grid-toolbar": "benschulz/ko-grid-toolbar",
     "ko-grid-view-modes": "benschulz/ko-grid-view-modes",

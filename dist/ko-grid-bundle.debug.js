@@ -18,7 +18,7 @@
  * Copyright (c) 2015, Ben Schulz
  * License: BSD 3-clause (http://opensource.org/licenses/BSD-3-Clause)
  */
-var onefold_js, onefold_lists, indexed_list, stringifyable, ko_data_source, onefold_dom, ko_indexed_repeat, ko_grid, ko_grid_aggregate, ko_grid_cell_navigation, ko_grid_column_sizing, ko_grid_column_resizing, ko_grid_view_modes, ko_grid_view_state_storage, ko_grid_column_scaling, ko_grid_column_width_persistence, ko_grid_editing, ko_grid_export, ko_grid_filtering, ko_grid_full_screen, ko_grid_links, ko_grid_resize_detection, ko_grid_sorting, ko_grid_toolbar, ko_grid_virtualization, ko_grid_bundle_bundle, ko_grid_bundle;
+var onefold_js, onefold_lists, indexed_list, stringifyable, ko_data_source, onefold_dom, ko_indexed_repeat, ko_grid, ko_grid_aggregate, ko_grid_cell_navigation, ko_grid_column_sizing, ko_grid_column_resizing, ko_grid_view_modes, ko_grid_view_state_storage, ko_grid_column_scaling, ko_grid_column_width_persistence, ko_grid_editing, ko_grid_export, ko_grid_filtering, ko_grid_full_screen, ko_grid_links, ko_grid_resize_detection, ko_grid_selection, ko_grid_sorting, ko_grid_toolbar, ko_grid_virtualization, ko_grid_bundle_bundle, ko_grid_bundle;
 onefold_js = function () {
   var onefold_js_objects, onefold_js_arrays, onefold_js_strings, onefold_js_internal, onefold_js;
   onefold_js_objects = function () {
@@ -2006,7 +2006,9 @@ ko_data_source = function (indexed_list, stringifyable, onefold_lists, onefold_j
         var query = (queryConfiguration || function (x) {
           return x;
         })(new QueryConfigurator());
-        return this.__querier['issue'](query.unwrapArguments().normalize());
+        return this.__querier['issue'](query.unwrapArguments().normalize()).then(function (r) {
+          return r.values;
+        });
       },
       dispose: function () {
         this.__observableEntries.dispose();
@@ -5244,6 +5246,130 @@ ko_grid_resize_detection = function (onefold_dom, stringifyable, indexed_list, o
   }(ko_grid_resize_detection_resize_detection);
   return ko_grid_resize_detection;
 }(onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
+ko_grid_selection = function (onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
+  var ko_grid_selection_selection, ko_grid_selection;
+  ko_grid_selection_selection = function (module, ko, koGrid) {
+    var extensionId = 'ko-grid-selection'.indexOf('/') < 0 ? 'ko-grid-selection' : 'ko-grid-selection'.substring(0, 'ko-grid-selection'.indexOf('/'));
+    var SELECTION_CLASS = 'ko-grid-selection-element';
+    koGrid.defineExtension(extensionId, {
+      Constructor: function SekectionExtension(bindingValue, config, grid) {
+        var allowMultiSelection = !!(bindingValue['allowMultiSelection'] || config['allowMultiSelection']);
+        var evaluateRowClicks = !!(bindingValue['evaluateRowClicks'] || config['evaluateRowClicks']);
+        var allSelected = false;
+        var column = grid.columns.add({
+          key: 'selection',
+          label: '',
+          width: grid.layout.determineCellDimensions(createSelectionElement(allowMultiSelection)).width + 'px'
+        });
+        var header = grid.headers.forColumn(column);
+        var isSelected = {};
+        var selectedEntriesIds = bindingValue['selectedEntriesIds'] || ko.observableArray([]);
+        var primaryKey = grid.primaryKey;
+        column.overrideValueBinding(function (b) {
+          return {
+            init: function (element) {
+              element.appendChild(createSelectionElement(allowMultiSelection));
+            },
+            update: function (element, cell, row) {
+              selectedEntriesIds();
+              // track dependency
+              element.firstChild.checked = !!isSelected[grid.data.valueSelector(row[primaryKey])];
+            }
+          };
+        });
+        var headerElementSubscription = header.element.subscribe(function (newElement) {
+          if (!allowMultiSelection || !newElement)
+            return;
+          var checkbox = createSelectionElement(true);
+          newElement.appendChild(checkbox);
+          newElement.addEventListener('click', function (e) {
+            if (e.target === newElement) {
+              e.preventDefault();
+              toggleAllSelection();
+            }
+          });
+        });
+        grid.headers.onColumnHeaderClick('.' + SELECTION_CLASS, function (event) {
+          event.preventApplicationButAllowBrowserDefault();
+          toggleAllSelection();
+        });
+        function toggleAllSelection() {
+          if (allSelected) {
+            isSelected = {};
+            selectedEntriesIds([]);
+          } else {
+            grid.data.source.streamValues(function (q) {
+              return q.filteredBy(grid.data.predicate);
+            }).then(function (s) {
+              return s.reduce(function (a, v) {
+                var id = grid.data.valueSelector(v[primaryKey]);
+                a.ids.push(id);
+                a.predicate[id] = true;
+                return a;
+              }, {
+                ids: [],
+                predicate: {}
+              });
+            }).then(function (r) {
+              isSelected = r.predicate;
+              selectedEntriesIds(r.ids);
+            });
+          }
+        }
+        function toggleEntrySelection(event, cell, row) {
+          var entryId = grid.data.observableValueSelector(ko.unwrap(row[primaryKey]));
+          if (!allowMultiSelection) {
+            isSelected = {};
+            selectedEntriesIds().length = 0;
+          }
+          if (isSelected[entryId]) {
+            delete isSelected[entryId];
+            selectedEntriesIds.remove(entryId);
+          } else {
+            isSelected[entryId] = true;
+            selectedEntriesIds.push(entryId);
+          }
+        }
+        if (evaluateRowClicks)
+          grid.data.onCellClick(toggleEntrySelection);
+        else
+          grid.data.onCellClick('.' + SELECTION_CLASS, toggleEntrySelection);
+        grid.data.rows.installClassifier(function (row) {
+          selectedEntriesIds();
+          // track dependency
+          return isSelected[grid.data.observableValueSelector(ko.unwrap(row[primaryKey]))] ? ['selected'] : [];
+        });
+        var allSelectedComputer = ko.computed(function () {
+          var selectedEntryCount = selectedEntriesIds().length;
+          var filteredSize = grid.data.view.filteredSize();
+          // TODO This is /broken/! Two sets being of equal size does not imply they are equal.
+          allSelected = !!selectedEntryCount && selectedEntryCount === filteredSize;
+          var headerElement = header.element(), checkbox = headerElement && headerElement.querySelector('.' + SELECTION_CLASS);
+          if (checkbox) {
+            checkbox.checked = allSelected;
+            checkbox.indeterminate = selectedEntryCount > filteredSize;
+          }
+        });
+        this.dispose = function () {
+          headerElementSubscription.dispose();
+          allSelectedComputer.dispose();
+        };
+      }
+    });
+    function createSelectionElement(allowMultiSelection) {
+      var element = window.document.createElement('input');
+      element.className = SELECTION_CLASS;
+      element.type = allowMultiSelection ? 'checkbox' : 'radio';
+      element.tabIndex = -1;
+      return element;
+    }
+    return koGrid.declareExtensionAlias('selection', extensionId);
+  }({}, knockout, ko_grid);
+  ko_grid_selection = function (main) {
+    return main;
+  }(ko_grid_selection_selection);
+  return ko_grid_selection;
+}(onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
 ko_grid_sorting = function (onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
   var ko_grid_sorting_sorting, ko_grid_sorting;
   ko_grid_sorting_sorting = function (module, koGrid, stringifyable) {
@@ -5321,7 +5447,7 @@ ko_grid_sorting = function (onefold_dom, stringifyable, indexed_list, onefold_li
   }(ko_grid_sorting_sorting);
   return ko_grid_sorting;
 }(onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
-ko_grid_toolbar = function (onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
+ko_grid_toolbar = function (onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
   var ko_grid_toolbar_toolbar, ko_grid_toolbar;
   ko_grid_toolbar_toolbar = function (module, koGrid) {
     var extensionId = 'ko-grid-toolbar'.indexOf('/') < 0 ? 'ko-grid-toolbar' : 'ko-grid-toolbar'.substring(0, 'ko-grid-toolbar'.indexOf('/'));
@@ -5343,7 +5469,7 @@ ko_grid_toolbar = function (onefold_dom, stringifyable, indexed_list, onefold_li
     return main;
   }(ko_grid_toolbar_toolbar);
   return ko_grid_toolbar;
-}(onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
+}(onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
 ko_grid_virtualization = function (onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
   var ko_grid_virtualization_virtualization, ko_grid_virtualization;
   ko_grid_virtualization_virtualization = function (module, ko, koGrid) {
@@ -5413,6 +5539,7 @@ ko_grid_bundle_bundle = {
     'fullScreen': ko_grid_full_screen,
     'links': ko_grid_links,
     'resizeDetection': ko_grid_resize_detection,
+    'selection': ko_grid_selection,
     'sorting': ko_grid_sorting,
     'toolbar': ko_grid_toolbar,
     'viewModes': ko_grid_view_modes,

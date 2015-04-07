@@ -17,6 +17,7 @@ define(function (require) {
             'fullScreen': require('ko-grid-full-screen'),
             'links': require('ko-grid-links'),
             'resizeDetection': require('ko-grid-resize-detection'),
+            'selection': require('ko-grid-selection'),
             'sorting': require('ko-grid-sorting'),
             'toolbar': require('ko-grid-toolbar'),
             'viewModes': require('ko-grid-view-modes'),
