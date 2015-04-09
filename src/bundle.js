@@ -3,6 +3,7 @@
 define(function (require) {
     return {
         'dataSource': require('ko-data-source'),
+        'entry': require('ko-entry'),
         'grid': require('ko-grid'),
         'extensions': {
             'aggregate': require('ko-grid-aggregate'),

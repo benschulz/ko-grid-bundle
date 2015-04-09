@@ -16,6 +16,7 @@
   },
   "devDependencies": {
     "ko-data-source": "benschulz/ko-data-source",
+    "ko-entry": "benschulz/ko-entry",
     "ko-grid": "benschulz/ko-grid",
     "ko-grid-aggregate": "benschulz/ko-grid-aggregate",
     "ko-grid-cell-navigation": "benschulz/ko-grid-cell-navigation",

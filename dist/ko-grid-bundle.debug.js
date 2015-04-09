@@ -18,7 +18,7 @@
  * Copyright (c) 2015, Ben Schulz
  * License: BSD 3-clause (http://opensource.org/licenses/BSD-3-Clause)
  */
-var onefold_js, onefold_lists, indexed_list, stringifyable, ko_data_source, onefold_dom, ko_indexed_repeat, ko_grid, ko_grid_aggregate, ko_grid_cell_navigation, ko_grid_column_sizing, ko_grid_column_resizing, ko_grid_view_modes, ko_grid_view_state_storage, ko_grid_column_scaling, ko_grid_column_width_persistence, ko_grid_editing, ko_grid_export, ko_grid_filtering, ko_grid_full_screen, ko_grid_links, ko_grid_resize_detection, ko_grid_selection, ko_grid_sorting, ko_grid_toolbar, ko_grid_virtualization, ko_grid_bundle_bundle, ko_grid_bundle;
+var onefold_js, onefold_lists, indexed_list, stringifyable, ko_data_source, ko_entry, onefold_dom, ko_indexed_repeat, ko_grid, ko_grid_aggregate, ko_grid_cell_navigation, ko_grid_column_sizing, ko_grid_column_resizing, ko_grid_view_modes, ko_grid_view_state_storage, ko_grid_column_scaling, ko_grid_column_width_persistence, ko_grid_editing, ko_grid_export, ko_grid_filtering, ko_grid_full_screen, ko_grid_links, ko_grid_resize_detection, ko_grid_selection, ko_grid_sorting, ko_grid_toolbar, ko_grid_virtualization, ko_grid_bundle_bundle, ko_grid_bundle;
 onefold_js = function () {
   var onefold_js_objects, onefold_js_arrays, onefold_js_strings, onefold_js_internal, onefold_js;
   onefold_js_objects = function () {
@@ -2239,6 +2239,56 @@ ko_data_source = function (indexed_list, stringifyable, onefold_lists, onefold_j
   }(ko_data_source_ko_data_source);
   return ko_data_source;
 }(indexed_list, stringifyable, onefold_lists, onefold_js, knockout);
+ko_entry = function (indexed_list, stringifyable, onefold_lists, onefold_js, ko_data_source, knockout) {
+  var ko_entry_binding, ko_entry;
+  ko_entry_binding = function (ko) {
+    var BINDING_NAME = 'entry';
+    var BINDING_NAME_OPTIONAL = 'optionalEntry';
+    var OPTION_ENTRY_ID = 'identifiedBy';
+    var OPTION_DATA_SOURCE = 'from';
+    var OPTION_ENTRY_NAME = 'as';
+    var DEFAULT_ENTRY_NAME = 'entry';
+    createBinding(BINDING_NAME_OPTIONAL, true);
+    return createBinding(BINDING_NAME, false);
+    function createBinding(name, optional) {
+      var binding = ko.bindingHandlers[name] = {
+        'init': function (element, valueAccessor, allBindingsAccessor, viewModel, bindingContext) {
+          var value = ko.unwrap(valueAccessor()), dataSource = value && value[OPTION_DATA_SOURCE] || allBindingsAccessor.has(OPTION_DATA_SOURCE) && allBindingsAccessor.get(OPTION_DATA_SOURCE), entryName = value && value[OPTION_ENTRY_NAME] || allBindingsAccessor.has(OPTION_ENTRY_NAME) && allBindingsAccessor.get(OPTION_ENTRY_NAME) || DEFAULT_ENTRY_NAME;
+          var bindingContextExtension = {};
+          bindingContextExtension[entryName] = ko.observable(null);
+          var innerHtml = element.innerHTML, extendedBindingContext = bindingContext.extend(bindingContextExtension), displaying = false;
+          element.innerHTML = '';
+          var entryView = null, computer = ko.computed(function () {
+              var value = ko.unwrap(valueAccessor()), entryId = ko.unwrap(value && value[OPTION_ENTRY_ID] || value), newEntryView = entryId && dataSource.openOptionalEntryView(entryId), observable = newEntryView && newEntryView.observable, display = !!(optional || newEntryView && observable);
+              if (display) {
+                extendedBindingContext[entryName](observable);
+                if (!displaying) {
+                  element.innerHTML = innerHtml;
+                  ko.applyBindingsToDescendants(extendedBindingContext, element);
+                }
+              } else if (displaying)
+                while (element.firstChild)
+                  ko.removeNode(element.firstChild);
+              if (entryView)
+                entryView.dispose();
+              entryView = newEntryView;
+              displaying = display;
+            });
+          ko.utils.domNodeDisposal.addDisposeCallback(element, function () {
+            computer.dispose();
+            entryView.dispose();
+          });
+          return { 'controlsDescendantBindings': true };
+        }
+      };
+      return binding;
+    }
+  }(knockout);
+  ko_entry = function (main) {
+    return main;
+  }(ko_entry_binding);
+  return ko_entry;
+}(indexed_list, stringifyable, onefold_lists, onefold_js, ko_data_source, knockout);
 onefold_dom = function () {
   var onefold_dom_internal, onefold_dom;
   onefold_dom_internal = function () {
@@ -5019,7 +5069,7 @@ ko_grid_filtering = function (onefold_dom, indexed_list, stringifyable, onefold_
       throw new Error('Dynamic load not allowed: ' + id);
     }
   };
-  text_ko_grid_filtering_filteringhtmltemplate = '<tr class="ko-grid-tr ko-grid-filter-row" data-bind="css: { applied: extensions.filtering.__applied }">\n    <td class="ko-grid-th ko-grid-filter-cell" data-bind="indexedRepeat: { forEach: columns.displayed, indexedBy: \'id\', as: \'column\'  }">\n        <input class="ko-grid-filter" type="text" data-bind="value: extensions.filtering.__forColumn(column()).text, valueUpdate: [\'keypress\', \'keyup\']"/>\n    </td>\n</tr>';
+  text_ko_grid_filtering_filteringhtmltemplate = '<tr class="ko-grid-tr ko-grid-filter-row" data-bind="css: { applied: extensions.filtering.__applied }">\n    <td class="ko-grid-th ko-grid-filter-cell" data-bind="indexedRepeat: { forEach: columns.displayed, indexedBy: \'id\', as: \'column\' }" data-repeat-bind="if: column().userDefined">\n        <input class="ko-grid-filter" type="text" data-bind="value: extensions.filtering.__forColumn(column()).text, valueUpdate: [\'input\']"/>\n    </td>\n</tr>';
   var viewStateStorage = 'ko-grid-view-state-storage';
   ko_grid_filtering_filtering = function (module, ko, stringifyable, koGrid, filteringTemplate) {
     var extensionId = 'ko-grid-filtering'.indexOf('/') < 0 ? 'ko-grid-filtering' : 'ko-grid-filtering'.substring(0, 'ko-grid-filtering'.indexOf('/'));
@@ -5255,6 +5305,8 @@ ko_grid_selection = function (onefold_dom, indexed_list, stringifyable, onefold_
       Constructor: function SekectionExtension(bindingValue, config, grid) {
         var allowMultiSelection = !!(bindingValue['allowMultiSelection'] || config['allowMultiSelection']);
         var evaluateRowClicks = !!(bindingValue['evaluateRowClicks'] || config['evaluateRowClicks']);
+        var selectedEntriesIds = bindingValue['selectedEntriesIds'] || ko.observableArray([]);
+        var selectedEntryId = bindingValue['selectedEntryId'] || ko.observable(null);
         var allSelected = false;
         var column = grid.columns.add({
           key: 'selection',
@@ -5263,7 +5315,6 @@ ko_grid_selection = function (onefold_dom, indexed_list, stringifyable, onefold_
         });
         var header = grid.headers.forColumn(column);
         var isSelected = {};
-        var selectedEntriesIds = bindingValue['selectedEntriesIds'] || ko.observableArray([]);
         var primaryKey = grid.primaryKey;
         column.overrideValueBinding(function (b) {
           return {
@@ -5339,9 +5390,10 @@ ko_grid_selection = function (onefold_dom, indexed_list, stringifyable, onefold_
           // track dependency
           return isSelected[grid.data.observableValueSelector(ko.unwrap(row[primaryKey]))] ? ['selected'] : [];
         });
-        var allSelectedComputer = ko.computed(function () {
+        var stateComputer = ko.computed(function () {
           var selectedEntryCount = selectedEntriesIds().length;
           var filteredSize = grid.data.view.filteredSize();
+          selectedEntryId(selectedEntryCount ? selectedEntriesIds()[selectedEntryCount - 1] : null);
           // TODO This is /broken/! Two sets being of equal size does not imply they are equal.
           allSelected = !!selectedEntryCount && selectedEntryCount === filteredSize;
           var headerElement = header.element(), checkbox = headerElement && headerElement.querySelector('.' + SELECTION_CLASS);
@@ -5352,7 +5404,7 @@ ko_grid_selection = function (onefold_dom, indexed_list, stringifyable, onefold_
         });
         this.dispose = function () {
           headerElementSubscription.dispose();
-          allSelectedComputer.dispose();
+          stateComputer.dispose();
         };
       }
     });
@@ -5525,6 +5577,7 @@ ko_grid_virtualization = function (onefold_dom, indexed_list, stringifyable, one
 
 ko_grid_bundle_bundle = {
   'dataSource': ko_data_source,
+  'entry': ko_entry,
   'grid': ko_grid,
   'extensions': {
     'aggregate': ko_grid_aggregate,
