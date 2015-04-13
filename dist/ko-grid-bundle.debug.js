@@ -18,7 +18,7 @@
  * Copyright (c) 2015, Ben Schulz
  * License: BSD 3-clause (http://opensource.org/licenses/BSD-3-Clause)
  */
-var onefold_js, onefold_lists, indexed_list, stringifyable, ko_data_source, ko_entry, onefold_dom, ko_indexed_repeat, ko_grid, ko_grid_aggregate, ko_grid_cell_navigation, ko_grid_column_sizing, ko_grid_column_resizing, ko_grid_view_modes, ko_grid_view_state_storage, ko_grid_column_scaling, ko_grid_column_width_persistence, ko_grid_editing, ko_grid_export, ko_grid_filtering, ko_grid_full_screen, ko_grid_links, ko_grid_resize_detection, ko_grid_selection, ko_grid_sorting, ko_grid_toolbar, ko_grid_virtualization, ko_grid_bundle_bundle, ko_grid_bundle;
+var onefold_js, onefold_lists, indexed_list, stringifyable, ko_data_source, ko_entry, onefold_dom, ko_indexed_repeat, ko_grid, ko_grid_aggregate, ko_grid_cell_navigation, ko_grid_column_sizing, ko_grid_column_resizing, ko_grid_view_modes, ko_grid_view_state_storage, ko_grid_column_scaling, ko_grid_column_width_persistence, ko_grid_editing, ko_grid_export, ko_grid_filtering, ko_grid_full_screen, ko_grid_paging, ko_grid_height_adjuster, ko_grid_links, ko_grid_resize_detection, ko_grid_selection, ko_grid_sorting, ko_grid_toolbar, ko_grid_virtualization, ko_grid_bundle_bundle, ko_grid_bundle;
 onefold_js = function () {
   var onefold_js_objects, onefold_js_arrays, onefold_js_strings, onefold_js_internal, onefold_js;
   onefold_js_objects = function () {
@@ -2276,7 +2276,8 @@ ko_entry = function (indexed_list, stringifyable, onefold_lists, onefold_js, ko_
             });
           ko.utils.domNodeDisposal.addDisposeCallback(element, function () {
             computer.dispose();
-            entryView.dispose();
+            if (entryView)
+              entryView.dispose();
           });
           return { 'controlsDescendantBindings': true };
         }
@@ -4264,7 +4265,7 @@ ko_grid_aggregate = function (onefold_dom, stringifyable, indexed_list, onefold_
 }(onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
 ko_grid_cell_navigation = function (onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
   var ko_grid_cell_navigation_cell_navigation, ko_grid_cell_navigation;
-  ko_grid_cell_navigation_cell_navigation = function (module, ko, koGrid) {
+  ko_grid_cell_navigation_cell_navigation = function (module, ko, dom, koGrid) {
     var extensionId = 'ko-grid-cell-navigation'.indexOf('/') < 0 ? 'ko-grid-cell-navigation' : 'ko-grid-cell-navigation'.substring(0, 'ko-grid-cell-navigation'.indexOf('/'));
     var KEY_CODE_ARROW_UP = 38, KEY_CODE_ARROW_LEFT = 37, KEY_CODE_ARROW_RIGHT = 39, KEY_CODE_ARROW_DOWN = 40, KEY_CODE_TAB = 9, KEY_CODE_ENTER = 13;
     var KEY_CODES = [
@@ -4338,14 +4339,23 @@ ko_grid_cell_navigation = function (onefold_dom, indexed_list, stringifyable, on
           focus(rows.get(newRowIndex), cols[newColIndex]);
         }
         function focus(row, column) {
-          if (row === selectedRow && column === selectedColumn)
-            return;
+          var cell = grid.data.lookupCell(row, column);
+          if (row !== selectedRow || column !== selectedColumn)
+            hijack(row, column, cell);
+          if (!dom.isOrContains(grid.rootElement, window.document.activeElement)) {
+            var focussable = cell.element.querySelector('input, select, textarea');
+            if (!focussable) {
+              focusParking.value = column.renderValue(ko.unwrap(row[column.property]));
+              focusParking.setSelectionRange(0, focusParking.value.length);
+              focussable = focusParking;
+            }
+            focussable.focus();
+          }
+          scrollIntoView(cell.element);
+        }
+        function hijack(row, column, cell) {
           if (hijacked)
             hijacked.release();
-          var cell = grid.data.lookupCell(row, column);
-          focusParking.focus();
-          focusParking.value = column.renderValue(ko.unwrap(row[column.property]));
-          focusParking.setSelectionRange(0, focusParking.value.length);
           hijacked = cell.hijack(function (b) {
             return onCellFocusedHandlers.reduce(function (a, h) {
               return h(row, column, a) || a;
@@ -4364,7 +4374,6 @@ ko_grid_cell_navigation = function (onefold_dom, indexed_list, stringifyable, on
               }
             });
           });
-          scrollIntoView(cell.element);
         }
         // TODO scroll containing view port if necessary
         function scrollIntoView(element) {
@@ -4372,14 +4381,14 @@ ko_grid_cell_navigation = function (onefold_dom, indexed_list, stringifyable, on
           var elementBounds = element.getBoundingClientRect();
           var extra = 7;
           var scrollX = Math.min(0, elementBounds.left - scrollerBounds.left - extra) || Math.max(0, elementBounds.right - scrollerBounds.right + extra + (scroller.offsetWidth - scroller.clientWidth));
-          var scrollY = Math.min(0, elementBounds.top - scrollerBounds.top - extra) || Math.max(0, elementBounds.bottom - scrollerBounds.bottom + extra);
+          var scrollY = Math.min(0, elementBounds.top - scrollerBounds.top - extra) || Math.max(0, elementBounds.bottom - scrollerBounds.bottom + extra + (scroller.offsetHeight - scroller.clientHeight));
           scroller.scrollLeft += scrollX;
           scroller.scrollTop += scrollY;
         }
       }
     });
     return koGrid.declareExtensionAlias('cellNavigation', extensionId);
-  }({}, knockout, ko_grid);
+  }({}, knockout, onefold_dom, ko_grid);
   ko_grid_cell_navigation = function (main) {
     return main;
   }(ko_grid_cell_navigation_cell_navigation);
@@ -4851,6 +4860,10 @@ ko_grid_editing = function (onefold_dom, indexed_list, stringifyable, onefold_li
           KEY_CODE_F2
         ]
       ], PRE_ACTIVATION_END_INDEX = PASS_THROUGH_KEY_RANGES.length - 1;
+    var NO_SUBSCRIPTION = {
+      dispose: function () {
+      }
+    };
     koGrid.defineExtension(extensionId, {
       dependencies: [cellNavigation],
       Constructor: function EditingExtension(bindingValue, config, grid) {
@@ -4859,10 +4872,7 @@ ko_grid_editing = function (onefold_dom, indexed_list, stringifyable, onefold_li
           }, saveChange = bindingValue['saveChange'] || config['saveChange'] || function () {
             return window.console.warn('No `saveChange` strategy provided.');
           };
-        var editingRow = null, editingColumn = null, editorContainer = null, editor = null, activated = false, keyDownSubscription = {
-            dispose: function () {
-            }
-          };
+        var editingRow = null, editingColumn = null, editorContainer = null, editor = null, activated = false, keyDownSubscription = NO_SUBSCRIPTION;
         grid.data.onCellDoubleClick(function () {
           if (editor) {
             activate();
@@ -4871,6 +4881,10 @@ ko_grid_editing = function (onefold_dom, indexed_list, stringifyable, onefold_li
         });
         grid.extensions[cellNavigation].onCellFocused(function (row, column, binding) {
           keyDownSubscription.dispose();
+          keyDownSubscription = NO_SUBSCRIPTION;
+          var rawEditor = createEditor(row, column);
+          if (!rawEditor)
+            return;
           editorContainer = window.document.createElement('div');
           editorContainer.style.position = 'absolute';
           editorContainer.style.top = HIDDEN_TOP;
@@ -4879,7 +4893,6 @@ ko_grid_editing = function (onefold_dom, indexed_list, stringifyable, onefold_li
           editorContainer.style.bottom = HIDDEN_BOTTOM;
           editorContainer.style.width = HIDDEN_WIDTH;
           editorContainer.style.overflow = 'hidden';
-          var rawEditor = createEditor(row, column);
           editor = new EditorWrapper(rawEditor);
           var editorElement = editor.element;
           editorContainer.appendChild(editorElement);
@@ -5220,6 +5233,273 @@ ko_grid_full_screen = function (onefold_dom, stringifyable, indexed_list, onefol
   }(ko_grid_full_screen_full_screen);
   return ko_grid_full_screen;
 }(onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid_view_modes, ko_data_source, ko_indexed_repeat, ko_grid, knockout);
+ko_grid_paging = function (onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
+  var text, text_ko_grid_paging_paginghtmltemplate, ko_grid_paging_paging, ko_grid_paging;
+  text = {
+    load: function (id) {
+      throw new Error('Dynamic load not allowed: ' + id);
+    }
+  };
+  text_ko_grid_paging_paginghtmltemplate = '<!-- ko with: extensions.paging -->\n<div class="ko-grid-paging" data-bind="if: pageCount() > 1, click: __handleClick">\n    <span data-bind="text: __message"></span>\n    <button class="ko-grid-toolbar-button ko-grid-paging-button" data-bind="visible: pageIndex() - maximumStepSize() > 0">1</button>\n    <span data-bind="visible: pageIndex() - maximumStepSize() > 1">&hellip;</span>\n    <button data-bind="indexedRepeat: {\n                forEach: __adjacentPageIndizes,\n                indexedBy: function(i) { return \'\' + i; },\n                as: \'i\'\n            }"\n            data-repeat-bind="text: i() + 1, css: {\n                \'pressed\': pageIndex() == i(),\n                \'ko-grid-toolbar-button\': true,\n                \'current-page\': pageIndex() == i(),\n                \'ko-grid-paging-button\': true\n            }">\n    </button>\n    <span data-bind="visible: pageIndex() + maximumStepSize() + 2 < pageCount()">&hellip;</span>\n    <button class="ko-grid-toolbar-button ko-grid-paging-button" tabIndex="-1" data-bind="visible: pageIndex() + maximumStepSize() + 1 < pageCount(), text: pageCount">?</button>\n</div>\n<!-- /ko -->\n';
+  var toolbar = 'ko-grid-toolbar';
+  ko_grid_paging_paging = function (module, ko, koGrid, pagingTemplate) {
+    var extensionId = 'ko-grid-paging'.indexOf('/') < 0 ? 'ko-grid-paging' : 'ko-grid-paging'.substring(0, 'ko-grid-paging'.indexOf('/'));
+    var PAGE_SIZE_FIT = 'fit';
+    koGrid.defineExtension(extensionId, {
+      dependencies: [toolbar],
+      initializer: function (template) {
+        return template.to('right-toolbar').append('paging', pagingTemplate);
+      },
+      Constructor: PagingExtension
+    });
+    function PagingExtension(bindingValue, config, grid) {
+      var desiredPageSize = firstValue(bindingValue, config, [
+        'pageSize',
+        'desired'
+      ], ['pageSize']);
+      var maximumPageSize = firstValue(bindingValue, config, [
+        'pageSize',
+        'maximum'
+      ]) || 50;
+      var scroller, table;
+      grid.postApplyBindings(function () {
+        scroller = grid.element.querySelector('.ko-grid-table-scroller');
+        table = grid.element.querySelector('.ko-grid-table');
+      });
+      this.maximumStepSize = this['maximumStepSize'] = ko.observable(2);
+      // TODO this should be configurable
+      this.rowCount = this['rowCount'] = ko.pureComputed(function () {
+        return grid.data.view.filteredSize();
+      });
+      var pageSize = {};
+      pageSize.desired = pageSize['desired'] = ko.observable(desiredPageSize);
+      pageSize.maximum = pageSize['maximum'] = ko.observable(maximumPageSize);
+      pageSize.actual = pageSize['actual'] = ko.pureComputed(function () {
+        var desiredPageSize = this.pageSize.desired();
+        if (desiredPageSize === PAGE_SIZE_FIT) {
+          var capacity = Math.floor(availableRowSpace() / averageRowHeight());
+          desiredPageSize = Math.max(1, capacity);
+        }
+        return Math.min(this.pageSize.maximum(), desiredPageSize);
+      }.bind(this));
+      this.pageSize = this['pageSize'] = pageSize;
+      this.pageIndex = this['pageIndex'] = ko.observable(0);
+      this.pageCount = this['pageCount'] = ko.pureComputed(function () {
+        var maxPageIndex = Math.max(0, Math.floor((this.rowCount() - 1) / this.pageSize.actual()));
+        this.pageIndex(Math.min(this.pageIndex(), maxPageIndex));
+        return maxPageIndex + 1;
+      }.bind(this));
+      var averageRowHeightFallback = grid.layout.determineCellDimensions('|').height;
+      var availableRowSpace = ko.observable(5 * averageRowHeightFallback);
+      var averageRowHeight = ko.observable(averageRowHeightFallback);
+      grid.layout.afterRelayout(recomputeAvailableSpaceAndAvgRowHeight);
+      grid.postApplyBindings(function () {
+        return grid.data.rows.displayedSynchronized.subscribe(function (synchronized) {
+          if (synchronized)
+            recomputeAvailableSpaceAndAvgRowHeight();
+        });
+      });
+      function recomputeAvailableSpaceAndAvgRowHeight() {
+        var displayedRowsCount = table.querySelectorAll('tbody tr').length, tableHeight = table.clientHeight, newAverageRowHeight = Math.floor(tableHeight / (displayedRowsCount || 1)) || averageRowHeightFallback, rowSpace = tableHeight - tableHeight % newAverageRowHeight, requiredNonRowSpace = tableHeight - rowSpace;
+        availableRowSpace(scroller.clientHeight - requiredNonRowSpace);
+        averageRowHeight(newAverageRowHeight);
+      }
+      var pageIndexSubscription = this.pageIndex.subscribe(function (newIndex) {
+        return grid.data.offset(newIndex * this.pageSize.actual());
+      }.bind(this));
+      var pageSizeSubscription = this.pageSize.actual.subscribe(function (newActualPageSize) {
+        grid.data.offset(this.pageIndex() * newActualPageSize);
+        grid.data.limit(newActualPageSize);
+      }.bind(this));
+      grid.data.offset(this.pageIndex() * this.pageSize.actual());
+      grid.data.limit(this.pageSize.actual());
+      var desiredPageSizeSubscription = this.pageSize.desired.subscribe(adaptToDesiredPageSize);
+      grid.postApplyBindings(function () {
+        return adaptToDesiredPageSize(this.pageSize.desired());
+      }.bind(this));
+      function adaptToDesiredPageSize(desiredPageSize) {
+        if (desiredPageSize === PAGE_SIZE_FIT)
+          grid.element.classList.add('with-fitted-page-size');
+        else
+          grid.element.classList.remove('with-fitted-page-size');
+      }
+      this.dispose = function () {
+        this.rowCount.dispose();
+        pageIndexSubscription.dispose();
+        pageSizeSubscription.dispose();
+        desiredPageSizeSubscription.dispose();
+      }.bind(this);
+    }
+    PagingExtension.prototype = {
+      get '__adjacentPageIndizes'() {
+        return ko.pureComputed(function () {
+          var from = Math.max(0, this.pageIndex() - this.maximumStepSize()), to = Math.min(this.pageCount() - 1, this.pageIndex() + this.maximumStepSize()), count = to - from + 1, result = new Array(count);
+          for (var i = 0; i < count; ++i)
+            result[i] = from + i;
+          return result;
+        }.bind(this));
+      },
+      get '__message'() {
+        return ko.pureComputed(function () {
+          var first = this.pageIndex() * this.pageSize.actual() + 1;
+          var last = Math.min(this.rowCount(), (this.pageIndex() + 1) * this.pageSize.actual());
+          return first + '\u2013' + last + ' of ' + this.rowCount();
+        }.bind(this));
+      },
+      '__handleClick': function (data, event) {
+        if (event.target.tagName === 'BUTTON')
+          this.pageIndex(parseInt(event.target.textContent, 10) - 1);
+      }
+    };
+    /**
+     * @param {*} bindingValue
+     * @param {*} config
+     * @param {...Array<string>}paths
+     * @return {*}
+     */
+    function firstValue(bindingValue, config, paths) {
+      for (var i = 2; i < arguments.length; ++i)
+        for (var j = 0; j < 2; ++j) {
+          var potentialResult = arguments[i].reduce(function (a, p) {
+            return a && a[p];
+          }, arguments[j]);
+          if (potentialResult !== undefined && typeof potentialResult !== 'object')
+            return potentialResult;
+        }
+    }
+    return koGrid.declareExtensionAlias('paging', extensionId);
+  }({}, knockout, ko_grid, text_ko_grid_paging_paginghtmltemplate);
+  ko_grid_paging = function (main) {
+    return main;
+  }(ko_grid_paging_paging);
+  return ko_grid_paging;
+}(onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout);
+ko_grid_height_adjuster = function (onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid_paging, ko_grid_view_state_storage, ko_data_source, ko_indexed_repeat, ko_grid_view_modes, knockout, ko_grid) {
+  var text, text_ko_grid_height_adjuster_height_adjusterhtmltemplate, ko_grid_height_adjuster_height_adjuster, ko_grid_height_adjuster;
+  text = {
+    load: function (id) {
+      throw new Error('Dynamic load not allowed: ' + id);
+    }
+  };
+  text_ko_grid_height_adjuster_height_adjusterhtmltemplate = '<div class="ko-grid-height-adjuster" data-bind="__gridHeightAdjuster: grid.extensions.heightAdjuster">\n    <div class="ko-grid-height-adjuster-buttons">\n        <button class="ko-grid-height-adjuster-button ko-grid-height-resetter" tabIndex="-1" data-bind="__gridHeightResetter: grid.extensions.heightAdjuster">Clear height</button>\n        <button class="ko-grid-height-adjuster-button ko-grid-height-clearer" tabIndex="-1" data-bind="__gridHeightClearer: grid.extensions.heightAdjuster">Reset height</button>\n    </div>\n</div>';
+  var paging = 'ko-grid-paging';
+  var viewStateStorage = 'ko-grid-view-state-storage';
+  ko_grid_height_adjuster_height_adjuster = function (module, ko, koGrid, heightAdjusterTemplate) {
+    var extensionId = 'ko-grid-height-adjuster'.indexOf('/') < 0 ? 'ko-grid-height-adjuster' : 'ko-grid-height-adjuster'.substring(0, 'ko-grid-height-adjuster'.indexOf('/'));
+    var document = window.document, requestAnimationFrame = window.requestAnimationFrame.bind(window), cancelAnimationFrame = window.cancelAnimationFrame.bind(window);
+    koGrid.defineExtension(extensionId, {
+      dependencies: [viewStateStorage],
+      initializer: function (template) {
+        return template.after('grid').insert('height-adjuster', heightAdjusterTemplate);
+      },
+      Constructor: function HeightAdjusterExtension(bindingValue, config, grid) {
+        this.__initialHeight = grid.rootElement.classList.contains('fixed-height') ? grid.rootElement.style.height : 'auto';
+        this.__clearedPageSize = undefined;
+        this.__height = ko.observable(this.__initialHeight);
+        var heightSubscription = this.__height.subscribe(function (newHeight) {
+          var p = grid.extensions[paging];
+          if (newHeight === 'auto') {
+            grid.rootElement.classList.remove('fixed-height');
+            if (p && p.pageSize.desired() === 'fit') {
+              this.__clearedPageSize = p.pageSize.desired();
+              p.pageSize.desired(Number.POSITIVE_INFINITY);
+            }
+          } else if (this.__clearedPageSize) {
+            grid.rootElement.classList.add('fixed-height');
+            p.pageSize.desired(this.__clearedPageSize);
+            this.__clearedPageSize = undefined;
+          }
+          grid.rootElement.style.height = newHeight;
+          grid.layout.recalculate();
+        }.bind(this));
+        grid.extensions[viewStateStorage].modeIndependent.bind('height', this.__height);
+        this.dispose = function () {
+          heightSubscription.dispose();
+        };
+      }
+    });
+    ko.bindingHandlers['__gridHeightAdjuster'] = {
+      'init': function (element, valueAccessor, allBindingsAccessor, viewModel, bindingContext) {
+        var grid = bindingContext['grid'];
+        var heightAdjuster = valueAccessor();
+        valueAccessor();
+        element.addEventListener('click', function (e) {
+          return e.preventDefault();
+        });
+        element.addEventListener('mousedown', function (e) {
+          if (e.target.tagName === 'BUTTON')
+            return;
+          e.preventDefault();
+          var initialHeight = grid.element.offsetHeight;
+          var minimumHeight = grid.element.offsetHeight - grid.element.querySelector('.ko-grid-table-scroller').offsetHeight + 50;
+          var initialMousePosition = e.pageY;
+          var newMousePosition = initialMousePosition;
+          var animationFrameRequest = 0;
+          function adjustHeight() {
+            var newHeight = initialHeight + newMousePosition - initialMousePosition;
+            heightAdjuster.__height(Math.max(minimumHeight, newHeight) + 'px');
+          }
+          function onMouseMove(evt) {
+            newMousePosition = evt.pageY;
+            if (animationFrameRequest)
+              cancelAnimationFrame(animationFrameRequest);
+            animationFrameRequest = requestAnimationFrame(adjustHeight);
+            e.preventDefault();
+          }
+          function onMouseUp() {
+            if (animationFrameRequest)
+              cancelAnimationFrame(animationFrameRequest);
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+          }
+          document.addEventListener('mousemove', onMouseMove);
+          document.addEventListener('mouseup', onMouseUp);
+        });
+      },
+      'update': function () {
+      }
+    };
+    ko.bindingHandlers['__gridHeightResetter'] = {
+      'init': function (element, valueAccessor) {
+        var heightAdjuster = valueAccessor();
+        var noInitialHeight = heightAdjuster.__initialHeight === 'auto';
+        if (noInitialHeight)
+          return;
+        element.addEventListener('click', function (e) {
+          e.preventDefault();
+          heightAdjuster.__height(heightAdjuster.__initialHeight);
+        });
+      },
+      'update': function (element, valueAccessor) {
+        var heightAdjuster = valueAccessor();
+        var initialHeight = heightAdjuster.__initialHeight;
+        var noInitialHeight = initialHeight === 'auto';
+        // Es ist wichtig, dass der `__height()`-Aufruf hinter dem `||` passiert. Passiert er vorher
+        // wird `update` bei jeder Änderung aufgerufen, selbst wenn keine initiale Höhe gesetzt ist.
+        element.disabled = noInitialHeight || heightAdjuster.__height() === initialHeight;
+      }
+    };
+    ko.bindingHandlers['__gridHeightClearer'] = {
+      'init': function (element, valueAccessor, allBindingsAccessor, viewModel, bindingContext) {
+        var heightAdjuster = valueAccessor();
+        element.addEventListener('click', function (e) {
+          e.preventDefault();
+          heightAdjuster.__height('auto');
+        });
+      },
+      'update': function (element, valueAccessor) {
+        var heightAdjuster = valueAccessor();
+        var height = heightAdjuster.__height();
+        element.disabled = height === 'auto';
+      }
+    };
+    return koGrid.declareExtensionAlias('heightAdjuster', extensionId);
+  }({}, knockout, ko_grid, text_ko_grid_height_adjuster_height_adjusterhtmltemplate);
+  ko_grid_height_adjuster = function (main) {
+    return main;
+  }(ko_grid_height_adjuster_height_adjuster);
+  return ko_grid_height_adjuster;
+}(onefold_dom, indexed_list, stringifyable, onefold_lists, onefold_js, ko_grid_paging, ko_grid_view_state_storage, ko_data_source, ko_indexed_repeat, ko_grid_view_modes, knockout, ko_grid);
 ko_grid_links = function (onefold_dom, stringifyable, indexed_list, onefold_lists, onefold_js, ko_grid, ko_data_source, ko_indexed_repeat, knockout) {
   var ko_grid_links_links, ko_grid_links;
   ko_grid_links_links = function (module, ko, koGrid) {
@@ -5302,7 +5582,7 @@ ko_grid_selection = function (onefold_dom, indexed_list, stringifyable, onefold_
     var extensionId = 'ko-grid-selection'.indexOf('/') < 0 ? 'ko-grid-selection' : 'ko-grid-selection'.substring(0, 'ko-grid-selection'.indexOf('/'));
     var SELECTION_CLASS = 'ko-grid-selection-element';
     koGrid.defineExtension(extensionId, {
-      Constructor: function SekectionExtension(bindingValue, config, grid) {
+      Constructor: function SelectionExtension(bindingValue, config, grid) {
         var allowMultiSelection = !!(bindingValue['allowMultiSelection'] || config['allowMultiSelection']);
         var evaluateRowClicks = !!(bindingValue['evaluateRowClicks'] || config['evaluateRowClicks']);
         var selectedEntriesIds = bindingValue['selectedEntriesIds'] || ko.observableArray([]);
@@ -5590,7 +5870,9 @@ ko_grid_bundle_bundle = {
     'export': ko_grid_export,
     'filtering': ko_grid_filtering,
     'fullScreen': ko_grid_full_screen,
+    'heightAdjuster': ko_grid_height_adjuster,
     'links': ko_grid_links,
+    'paging': ko_grid_paging,
     'resizeDetection': ko_grid_resize_detection,
     'selection': ko_grid_selection,
     'sorting': ko_grid_sorting,

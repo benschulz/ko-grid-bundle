@@ -25,9 +25,12 @@ module.exports = function (grunt) {
             'bower_components/ko-grid-export/dist/ko-grid-export.debug.css',
             'bower_components/ko-grid-filtering/dist/ko-grid-filtering.debug.css',
             'bower_components/ko-grid-full-screen/dist/ko-grid-full-screen.debug.css',
+            'bower_components/ko-grid-height-adjuster/dist/ko-grid-height-adjuster.debug.css',
+            'bower_components/ko-grid-paging/dist/ko-grid-paging.debug.css',
             'bower_components/ko-grid-selection/dist/ko-grid-selection.debug.css',
             'bower_components/ko-grid-sorting/dist/ko-grid-sorting.debug.css',
-            'bower_components/ko-grid-toolbar/dist/ko-grid-toolbar.debug.css'
+            'bower_components/ko-grid-toolbar/dist/ko-grid-toolbar.debug.css',
+            'src/bundle.less'
         ]
     });
 };
